@@ -1,0 +1,38 @@
+---
+description: Project architecture, layering, and API response conventions for the hackathon backend and frontend.
+alwaysApply: true
+---
+
+# Architecture & Conventions
+
+## Backend layering (no skipping layers)
+
+`route → controller → service → repository`
+
+- **Routes** (`/api/routes/`): wire middleware + controller, no logic.
+- **Controllers** (`/api/controllers/`): parse/validate the request with Zod, call the service, format the response. NO business logic, NO direct DB calls.
+- **Services** (`/services/`): all business logic. MUST NOT import from `express`.
+- **Repositories** (`/repositories/`): DB access only. Return domain entities, never raw DB rows.
+- **Schemas** (`/domain/schemas/`): shared Zod schemas + inferred DTOs. Reused by frontend.
+- **Errors** (`/domain/errors/`): typed `AppError` subclasses with `statusCode` and `code`.
+
+## API response envelope (ALWAYS)
+
+```json
+// Success
+{ "success": true, "data": <payload>, "meta": { ... } }
+// Error
+{ "success": false, "error": { "code": "SNAKE_CASE_CODE", "message": "Human readable", "details": [] } }
+```
+
+Status codes: 200 ok · 201 created · 204 no content · 400 bad request · 401 unauthenticated · 403 forbidden · 404 not found · 409 conflict · 422 validation · 429 rate limit · 500 server error.
+
+## Naming
+
+- Files: `kebab-case.ts` (e.g. `user.service.ts`, `auth.routes.ts`).
+- DB identifiers: `snake_case` (tables, columns).
+- Variables/functions: `camelCase`. Types/classes: `PascalCase`. Constants: `SCREAMING_SNAKE_CASE`.
+
+## API versioning
+
+All routes mounted under `/api/v1/...`. Resources are nouns (`/users`, not `/getUsers`).
