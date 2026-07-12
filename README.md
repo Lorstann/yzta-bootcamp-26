@@ -42,7 +42,7 @@ Takım 320
 
 ## Daily Scrum Notları
 
-Toplantılar bootcamp sürecinde Slack üzerinden yürütülmüştür. Aşağıda Sprint 1 kapsamındaki önemli günlük notlar kronolojik olarak özetlenmiştir.
+Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmüştür. Aşağıda Sprint 1 kapsamındaki önemli günlük notlar kronolojik olarak özetlenmiştir.
 
 ### 22.06.2026
 
