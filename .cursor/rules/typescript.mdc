@@ -1,0 +1,54 @@
+---
+description: TypeScript coding standards for the hackathon project.
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TypeScript Standards
+
+## Type safety
+
+- No `any`. Use `unknown` and narrow, or define a proper type.
+- No non-null assertions (`!`) on values that aren't *provably* non-null at that line. Prefer explicit checks.
+- Every exported function gets an explicit return type.
+- Prefer `interface` for object shapes that may be extended, `type` for unions and aliases.
+
+## Use Zod-inferred types
+
+Define the schema once, infer the type — don't hand-write both.
+
+```typescript
+// ❌ BAD
+interface CreateUserDto { email: string; password: string; }
+const schema = z.object({ email: z.string().email(), password: z.string() });
+
+// ✅ GOOD
+export const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+}).strict();
+export type CreateUserDto = z.infer<typeof createUserSchema>;
+```
+
+## Error handling
+
+- Never swallow errors. Every `catch` MUST either log + rethrow, log + return a fallback, or convert to a typed `AppError`.
+- Use discriminated unions for results when an operation can fail in multiple ways.
+
+```typescript
+// ❌ BAD
+try { await fetchData(); } catch (e) {}
+
+// ✅ GOOD
+try {
+  await fetchData();
+} catch (err) {
+  logger.error({ err }, 'Failed to fetch data');
+  throw new DataFetchError('Unable to retrieve data', { cause: err });
+}
+```
+
+## Imports
+
+- Use the `@/` alias for absolute imports. No `../../../` chains beyond two levels.
+- Group: external packages → `@/` internal → relative.

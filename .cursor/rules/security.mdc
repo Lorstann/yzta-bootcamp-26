@@ -1,0 +1,46 @@
+---
+description: Baseline security rules — secrets handling, input validation, auth, and sensitive data exposure.
+alwaysApply: true
+---
+
+# Security Baseline
+
+## Secrets
+
+- NEVER hardcode secrets, API keys, JWT secrets, DB passwords, or tokens in source.
+- All secrets live in environment variables, loaded via `@/config`. Reference: `config.jwt.accessSecret`, not `process.env.JWT_SECRET` scattered through the code.
+- Never commit `.env`. Provide `.env.example` with placeholder values.
+
+## Input validation
+
+- ALL untrusted input (request body, query, params, headers used in logic, uploaded file metadata) MUST pass through a Zod schema before being used.
+- Use `.strict()` on object schemas so unknown fields are rejected, not silently passed through.
+
+## Authentication & authorization
+
+- Protect every non-public route with the `authenticate` middleware (see `add-authentication-middleware` skill).
+- Authorize at the **service** layer too, not just the route. Verify `userId` ownership of any resource being read or mutated.
+- Hash passwords with bcrypt/argon2 — never store plaintext. Never return `passwordHash` in any API response.
+
+## Database queries
+
+- Parameterized queries only. No string interpolation of user input into SQL.
+- For MongoDB, sanitize operator injection: reject keys starting with `$` from request bodies.
+
+## Sensitive data exposure
+
+- Exclude `passwordHash`, `tokens`, `refreshToken`, and PII fields from any API response by default. Use a `toPublic()` mapper on entities.
+- Generic error messages on auth failures: "Invalid credentials" — never "User not found" vs "Wrong password".
+- See `logging.mdc` for what must never appear in logs.
+
+## Examples
+
+```typescript
+// ❌ BAD
+const user = await db.query(`SELECT * FROM users WHERE email = '${email}'`);
+res.json({ success: true, data: user }); // leaks passwordHash
+
+// ✅ GOOD
+const user = await db.query('SELECT id, email, role FROM users WHERE email = $1', [email]);
+res.json({ success: true, data: toPublicUser(user) });
+```

@@ -1,0 +1,50 @@
+---
+description: Always preserve and use logging. Never strip log statements; always use the project's Pino logger for new code.
+alwaysApply: true
+---
+
+# Logging Policy — Always Keep The Logs
+
+Structured logs are how this project is debugged, observed, and demoed. Treat log statements as first-class code.
+
+## Always keep existing logs
+
+- NEVER delete, comment out, or weaken an existing `logger.*` call. If a log seems noisy, flag it for human review in your response — do not remove it.
+- When refactoring, preserve every log call **and** its context object verbatim.
+- When fixing a bug, ADD a log; don't remove one.
+- Empty `catch` blocks are forbidden. Every caught error MUST be logged before re-throwing or handling.
+
+## Always use the project logger
+
+- Import from `@/utils/logger` (Pino, configured per the `setup-logger` skill). Never use `console.log`, `console.error`, or `console.warn` in shipped code.
+- Use the object-first signature so log aggregators can index fields:
+  `logger.info({ userId, action: 'user.created' }, 'User created')`.
+- Pick the correct level:
+  - `logger.debug` — verbose diagnostics
+  - `logger.info` — normal flow (request received, entity created)
+  - `logger.warn` — recoverable / expected failures (auth failed, rate-limited, validation error)
+  - `logger.error` — unexpected failures; ALWAYS include the `err` field
+- In `catch` blocks, log before throwing:
+  `logger.error({ err, path: req.path }, 'Failed to create user'); throw err;`
+
+## Never log secrets
+
+- Never log passwords, tokens, full Authorization headers, full request bodies, or PII.
+- Rely on the redact paths configured in `@/utils/logger`. If you introduce a new sensitive field, extend the redact list in the same change.
+
+## Examples
+
+```typescript
+// ❌ BAD
+console.log('user created:', user);
+try { await userRepo.create(dto); } catch (e) {}
+
+// ✅ GOOD
+logger.info({ userId: user.id, action: 'user.created' }, 'User created');
+try {
+  await userRepo.create(dto);
+} catch (err) {
+  logger.error({ err, email: dto.email }, 'Failed to create user');
+  throw err;
+}
+```
