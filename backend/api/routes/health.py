@@ -1,11 +1,15 @@
+"""
+backend/api/routes/health.py
+B3: Health endpoint route tanımı — iş mantığı controller'da.
+"""
+
 from fastapi import APIRouter
+from backend.api.controllers.health_controller import get_health
 
 router = APIRouter()
 
-@router.get("/health")
+
+@router.get("/health", tags=["system"])
 def health_check():
-    return {
-        "success": True, 
-        "data": {"status": "healthy"}, 
-        "meta": {}
-    }
+    """Servisin sağlık durumunu döner."""
+    return get_health()
