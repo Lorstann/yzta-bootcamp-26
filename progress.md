@@ -105,8 +105,8 @@
 
 | # | Görev | Durum | Story |
 |---|-------|-------|-------|
-| B1 | FastAPI + Uvicorn proje iskeletini oluştur (`backend/` klasör yapısı) | ⬜ | S04 |
-| B2 | Katmanlı mimariyi kur: `routes → controllers → services → repositories` | ⬜ | S04 |
+| B1 | FastAPI + Uvicorn proje iskeletini oluştur (`backend/` klasör yapısı) | ✅  | S04 |
+| B2 | Katmanlı mimariyi kur: `routes → controllers → services → repositories` | ✅  | S04 |
 | B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ⬜ | S03 |
 | B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ⬜ | S03 |
 | B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ⬜ | S04 |
@@ -147,4 +147,4 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 12 Temmuz 2026
+**Son güncelleme:** 14 Temmuz 2026
