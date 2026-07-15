@@ -18,7 +18,7 @@
 ### Kişi Bazlı Özet
 
 | Kişi | Rol | Alanlar |
-|------|-----|---------|
+|------|-----|---------| 
 | Dilan Özyazıcı | Product Owner | Database, Backend, Frontend |
 | Mustafa Kurtar | Scrum Master | Backend, AI Agent, Frontend |
 | Elif Kahrıman | Developer | Backend, AI Agent, Frontend |
