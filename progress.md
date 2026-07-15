@@ -54,7 +54,7 @@
 | D6 | `curricula` ve `curriculum_chunks` tablolarını oluştur (vektör kolonu ile) | ✅ | S06 |
 | D7 | `checkin_sessions` ve `weekly_tasks` tablolarını oluştur | ✅ | S07 |
 | D8 | Tüm tenant-scoped tablolara Row-Level Security (RLS) politikalarını ekle | ⬜ | S18, AC4 |
-| D9 | Local geliştirme için seed verisi yaz (2 tenant, örnek öğrenci) | ⬜ | S19 |
+| D9 | Local geliştirme için seed verisi yaz (2 tenant, örnek öğrenci) | ✅ | S19 |
 | D10 | Cross-tenant izolasyon test senaryolarını hazırla | ⬜ | S19 |
 
 ---
