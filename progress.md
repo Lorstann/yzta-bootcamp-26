@@ -46,9 +46,9 @@
 
 | # | Görev | Durum | Story |
 |---|-------|-------|-------|
-| D1 | `docker-compose` ile PostgreSQL 15+ local ortamını ayağa kaldır | ✅ Hasibe | — |
+| D1 | `docker-compose` ile PostgreSQL 15+ local ortamını ayağa kaldır | ✅ | — |
 | D2 | `pgvector` extension'ını etkinleştir | ⬜ | S06 |
-| D3 | Alembic migration altyapısını kur | ⬜ | S18 |
+| D3 | Alembic migration altyapısını kur | ✅ | S18 |
 | D4 | `tenants` ve `users` tablolarını oluştur (`tenant_id`, `created_at`, `updated_at`) | ⬜ | S18 |
 | D5 | `student_profiles` tablosunu oluştur (kapasite skoru alanı dahil) | ⬜ | S09 |
 | D6 | `curricula` ve `curriculum_chunks` tablolarını oluştur (vektör kolonu ile) | ⬜ | S06 |
@@ -107,14 +107,14 @@
 |---|-------|-------|-------|
 | B1 | FastAPI + Uvicorn proje iskeletini oluştur (`backend/` klasör yapısı) | ✅  | S04 |
 | B2 | Katmanlı mimariyi kur: `routes → controllers → services → repositories` | ✅  | S04 |
-| B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ✅ Hasibe | S03 |
+| B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ✅ | S03 |
 | B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ⬜ | S03 |
 | B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ⬜ | S04 |
 | B6 | Pydantic request/response şemalarını tanımla | ⬜ | S03, S04 |
 | B7 | Structured logging (structlog) ve global error handler ekle | ⬜ | S04 |
 | B8 | Database connection + repository katmanını backend'e bağla | ⬜ | S18 |
 | B9 | AI Agent streaming fonksiyonunu endpoint'e entegre et | ⬜ | S04, A3 |
-| B10 | `.env.example` dosyasını oluştur (DB, LLM, JWT placeholder) | ✅ Hasibe | — |
+| B10 | `.env.example` dosyasını oluştur (DB, LLM, JWT placeholder) | ✅ | — |
 
 ---
 
@@ -147,4 +147,4 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 15 Temmuz 2026 — D1 (docker-compose), B10 (.env.example + config), B3 (response envelope) Hasibe tarafından tamamlandı.
+**Son güncelleme:** 15 Temmuz 2026
