@@ -47,7 +47,7 @@
 | # | Görev | Durum | Story |
 |---|-------|-------|-------|
 | D1 | `docker-compose` ile PostgreSQL 15+ local ortamını ayağa kaldır | ✅ | — |
-| D2 | `pgvector` extension'ını etkinleştir | ⬜ | S06 |
+| D2 | `pgvector` extension'ını etkinleştir | ✅ | S06 |
 | D3 | Alembic migration altyapısını kur | ✅ | S18 |
 | D4 | `tenants` ve `users` tablolarını oluştur (`tenant_id`, `created_at`, `updated_at`) | ✅ | S18 |
 | D5 | `student_profiles` tablosunu oluştur (kapasite skoru alanı dahil) | ✅ | S09 |
