@@ -67,9 +67,9 @@
 
 | # | Görev | Durum | Story |
 |---|-------|-------|-------|
-| A1 | LLM sağlayıcısını seç ve ortam değişkenlerini tanımla (Bedrock veya OpenAI/Anthropic) | ⬜ | S04 |
-| A2 | LangChain veya LlamaIndex bağımlılıklarını backend projesine ekle | ⬜ | S06 |
-| A3 | Basit streaming yanıt fonksiyonu yaz (LLM → token chunk) | ⬜ | S04 |
+| A1 | LLM sağlayıcısını seç ve ortam değişkenlerini tanımla (Bedrock veya OpenAI/Anthropic) | ✅ | S04 |
+| A2 | LangChain veya LlamaIndex bağımlılıklarını backend projesine ekle | ✅ | S06 |
+| A3 | Basit streaming yanıt fonksiyonu yaz (LLM → token chunk) | ✅ | S04 |
 | A4 | Manuel müfredat metni/PDF için chunk + embedding pipeline'ını oluştur | ⬜ | S06 |
 | A5 | pgvector üzerinde similarity search (top-k retrieve) POC'unu test et | ⬜ | S06 |
 | A6 | Check-in akışı için sistem prompt'u ve soru şablonunu tasarla (≤ 2 dk) | ⬜ | S07 |
@@ -147,4 +147,11 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 15 Temmuz 2026
+**Son güncelleme:** 16 Temmuz 2026
+
+### 16.07.2026 — Hafize Talya Keysan
+
+- **A1 tamamlandı:** OpenAI varsayılan sağlayıcı olarak seçildi; `LLM_PROVIDER` ortam değişkeni `.env.example` ve `backend/config.py`'ye eklendi. `backend/services/llm/provider.py` modülü ile sağlayıcı/model ayarları merkezi okunuyor.
+- **A2 tamamlandı:** LangChain bağımlılıkları `requirements.txt`'e eklendi (`langchain`, `langchain-openai`, `langchain-anthropic`).
+- **A3 tamamlandı:** `backend/services/llm/streaming.py` — `stream_llm_response()` async generator; OpenAI/Anthropic streaming + API key yoksa mock mod. Backend B5/B9 endpoint'e bağlayacak.
+- **Teslim kapsamı (çakışma önleme):** Bu işte yalnızca şu dosyalar değişti: `.env.example`, `backend/config.py`, `requirements.txt`, `backend/services/llm/`, `progress.md`.
