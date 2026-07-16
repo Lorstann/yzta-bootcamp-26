@@ -149,9 +149,6 @@
 
 **Son güncelleme:** 16 Temmuz 2026
 
-### 16.07.2026 — Hafize Talya Keysan
-
 - **A1 tamamlandı:** OpenAI varsayılan sağlayıcı olarak seçildi; `LLM_PROVIDER` ortam değişkeni `.env.example` ve `backend/config.py`'ye eklendi. `backend/services/llm/provider.py` modülü ile sağlayıcı/model ayarları merkezi okunuyor.
 - **A2 tamamlandı:** LangChain bağımlılıkları `requirements.txt`'e eklendi (`langchain`, `langchain-openai`, `langchain-anthropic`).
 - **A3 tamamlandı:** `backend/services/llm/streaming.py` — `stream_llm_response()` async generator; OpenAI/Anthropic streaming + API key yoksa mock mod. Backend B5/B9 endpoint'e bağlayacak.
-- **Teslim kapsamı (çakışma önleme):** Bu işte yalnızca şu dosyalar değişti: `.env.example`, `backend/config.py`, `requirements.txt`, `backend/services/llm/`, `progress.md`.
