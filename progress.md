@@ -72,9 +72,9 @@
 | A3 | Basit streaming yanıt fonksiyonu yaz (LLM → token chunk) | ✅ | S04 |
 | A4 | Manuel müfredat metni/PDF için chunk + embedding pipeline'ını oluştur | ⬜ | S06 |
 | A5 | pgvector üzerinde similarity search (top-k retrieve) POC'unu test et | ⬜ | S06 |
-| A6 | Check-in akışı için sistem prompt'u ve soru şablonunu tasarla (≤ 2 dk) | ⬜ | S07 |
+| A6 | Check-in akışı için sistem prompt'u ve soru şablonunu tasarla (≤ 2 dk) | ✅ | S07 |
 | A7 | RAG context inject: retrieve edilen müfredat chunk'larını prompt'a ekle | ⬜ | S06, S13 |
-| A8 | Guardrails keyword listesi taslağını hazırla (depresyon, intihar, bırakma) | ⬜ | S16 |
+| A8 | Guardrails keyword listesi taslağını hazırla (depresyon, intihar, bırakma) | ✅ | S16 |
 
 ---
 
@@ -110,7 +110,7 @@
 | B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ✅ | S03 |
 | B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ⬜ | S03 |
 | B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ⬜ | S04 |
-| B6 | Pydantic request/response şemalarını tanımla | ⬜ | S03, S04 |
+| B6 | Pydantic request/response şemalarını tanımla | ✅ | S03, S04 |
 | B7 | Structured logging (structlog) ve global error handler ekle | ✅ | S04 |
 | B8 | Database connection + repository katmanını backend'e bağla | ⬜ | S18 |
 | B9 | AI Agent streaming fonksiyonunu endpoint'e entegre et | ⬜ | S04, A3 |
@@ -147,7 +147,7 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 16 Temmuz 2026
+**Son güncelleme:** 17 Temmuz 2026
 
 - **A1 tamamlandı:** OpenAI varsayılan sağlayıcı olarak seçildi; `LLM_PROVIDER` ortam değişkeni `.env.example` ve `backend/config.py`'ye eklendi. `backend/services/llm/provider.py` modülü ile sağlayıcı/model ayarları merkezi okunuyor.
 - **A2 tamamlandı:** LangChain bağımlılıkları `requirements.txt`'e eklendi (`langchain`, `langchain-openai`, `langchain-anthropic`).
