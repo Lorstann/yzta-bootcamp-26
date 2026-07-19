@@ -42,7 +42,7 @@ Takım 320
 
 ## Daily Scrum Notları
 
-Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmüştür. Aşağıda Sprint 1 kapsamındaki önemli günlük notlar kronolojik olarak özetlenmiştir.
+Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmüştür. Aşağıda önemli günlük notlar kronolojik olarak özetlenmiştir.
 
 ### 22.06.2026
 
@@ -77,6 +77,26 @@ Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmü�
   - **Sprint 1:** Planlama, derinleşme ve analiz
   - **Sprint 2 ve 3:** Ürün geliştirme, test etme ve production aşamaları
 
+### 07.07.2026
+
+- Sprint 1 sonucu oluşan user story'ler 4 parçaya bölündü: **AI, Backend, Frontend ve Database**.
+- İsteklere ve yetkinliklere göre bu alanlarda ekip görev dağılımı yapıldı.
+
+### 09.07.2026
+
+- Push'larda conflict oluşması ve ilerlemenin takip edilememesi sonucunda toplanıldı; çözüm olarak [progress.md](progress.md) oluşturuldu.
+- `progress.md` dosyasında 4 ana dalın görevleri dağıtıldı ve ilerleme takibi sağlaması için **her push'ta bu dosyanın güncellenmesi** gerektiği kararlaştırıldı.
+
+### 14.07.2026
+
+- İlerlemelerdeki mevcut durum konuşuldu; projeyi yaparken karşılaşılan problemler belirlendi.
+- AI tarafında projeye uygun kullanılacak model için **araştırma yapılmasına** karar verildi.
+
+### 19.07.2026
+
+- Sprint 2 öncesi son push'lar kontrol edildi, gereklilikler tamamlandı.
+- Sprint 2'de bitmeyen görevler **Sprint 3'e aktarıldı** ve projeyi canlıya almak için gerekli altyapı hazırlandı.
+
 ---
 
 # Sprint 1
@@ -98,10 +118,8 @@ Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmü�
 
 - **Daily Scrum**: Daily Scrum toplantılarının zamansal sebeplerden ötürü Slack üzerinden yapılmasına karar verilmiştir. Daily Scrum toplantısı örneği jpeg veya word olarak Readme'de tarafımızdan paylaşılmaktadır: [Sprint 1 Daily Scrum Chats](https://github.com/OyunveUygulamaAkademisi/BootcampScrumTemplate/blob/main/ProjectManagement/Sprint1Documents/DailyScrumMeetingNotesSprint1.docx?raw=true)
 
-- **Sprint board update**: Sprint board screenshotları: 
-![Backlog 1](https://raw.githubusercontent.com/OyunveUygulamaAkademisi/BootcampScrumTemplate/main/ProjectManagement/Sprint1Documents/backlog1.png) 
-![Backlog 2](https://raw.githubusercontent.com/OyunveUygulamaAkademisi/BootcampScrumTemplate/main/ProjectManagement/Sprint1Documents/backlog2.png) 
-![Backlog 3](https://raw.githubusercontent.com/OyunveUygulamaAkademisi/BootcampScrumTemplate/main/ProjectManagement/Sprint1Documents/backlog3.png)
+- **Sprint board update**: Sprint 1 board görünümü:
+![Sprint 1 Kanban Board](kanban-board/image1.png)
 
 - **Ürün Durumu**: Sprint 1 kapsamında çalışan bir ürün demosu bulunmamaktadır; teslim çıktıları dokümantasyon ve mimari planlama düzeyindedir.
 
@@ -117,6 +135,37 @@ Alınan kararlar: Takım 320 olarak ekip tanışması ve rol dağılımı (PO, S
 
 # Sprint 2
 
+**Sprint Hedefi:** Sprint 1'de planlanan ve 4 alana (AI, Backend, Frontend, Database) bölünen user story'lerin geliştirilmesine başlamak; veritabanı altyapısını, backend iskeletini ve AI streaming katmanını hayata geçirmek. İlerlemenin conflict yaşanmadan takip edilebilmesi için [progress.md](progress.md) tabanlı çalışma düzenine geçmek.
+
+- **Backlog düzeni ve Story seçimleri**: Sprint 1'de oluşturulan user story'ler (S01–S07) yetkinliklere göre AI, Backend, Frontend ve Database olmak üzere 4 alana bölünerek ekip üyelerine dağıtıldı. Görev takibi [progress.md](progress.md) üzerinden yapılmıştır ve her push'ta güncellenmiştir.
+
+  Sprint 2 kapsamında öncelik **Database ve Backend** altyapısına verildi; AI streaming katmanı geliştirilmeye başlandı, Frontend ise bu sprintte başlatılmadı.
+
+  | Alan | Durum | Öne çıkan çıktılar |
+  |------|-------|--------------------|
+  | Database | Tamamlandı | PostgreSQL + pgvector, Alembic migration, temel tablolar, RLS, seed verisi, cross-tenant test |
+  | Backend | Kısmen tamamlandı | FastAPI iskelet, katmanlı mimari, response envelope, Pydantic şemalar, structured logging, `.env.example` |
+  | AI Agent | Kısmen tamamlandı | LLM sağlayıcı seçimi (OpenAI), LangChain bağımlılıkları, streaming yanıt fonksiyonu, check-in prompt taslağı, guardrails keyword listesi |
+  | Frontend | Başlanmadı | Sprint 3'e aktarıldı |
+
+  Detaylı görev bazlı ilerleme: [progress.md](progress.md)
+
+- **Daily Scrum**: Daily Scrum toplantıları Slack ve Google Meets üzerinden yürütülmüştür. Sprint 2 sürecine ait toplantı notları yukarıdaki [Daily Scrum Notları](#daily-scrum-notları) bölümünde (07.07 – 19.07.2026) paylaşılmıştır.
+
+- **Sprint board update**: Sprint 2 board görünümü (sprint başı ve sprint ilerleyişi):
+![Sprint 2 Kanban Board - Ara Durum](kanban-board/image2.png)
+![Sprint 2 Kanban Board - Güncel Durum](kanban-board/image3.png)
+
+- **Ürün Durumu**: Sprint 2 sonunda henüz bir frontend arayüzü bulunmamaktadır. Bu sprintte **Backend ve Database** katmanları üzerinde çalışılmıştır. Veritabanı (PostgreSQL + pgvector + RLS + seed) altyapısı tamamlanmış, FastAPI backend iskeleti ile AI streaming katmanı kısmen hayata geçirilmiştir. Çalışan uçtan uca kullanıcı demosu Sprint 3'e planlanmıştır.
+
+- **Sprint Review**: 
+Alınan kararlar: Sprint 2'de user story'ler 4 alana bölünerek geliştirmeye geçildi. Database katmanı tümüyle tamamlandı (şema, pgvector, RLS, seed verisi, cross-tenant izolasyon testleri). Backend tarafında FastAPI iskeleti, katmanlı mimari, standart response envelope, Pydantic şemaları ve loglama tamamlandı; OpenAPI kontratının kilitlenmesi ve streaming endpoint gibi görevler devam ediyor. AI tarafında LLM sağlayıcı olarak OpenAI seçildi, LangChain entegrasyonu ve streaming yanıt fonksiyonu geliştirildi. Frontend bu sprintte başlatılamadı; frontend story'leri ve tamamlanamayan backend/AI görevleri Sprint 3'e aktarıldı. Sprint Review katılımcıları: Takım 320 (Dilan Özyazıcı, Mustafa Kurtar, Elif Kahrıman, Hafize Talya Keysan, Hasibe Nur Tunç)
+
+- **Sprint Retrospective:**
+  - Push'larda yaşanan conflict ve takip zorluğu, `progress.md` dosyasının oluşturulması ve her push'ta güncellenmesiyle büyük ölçüde çözüldü; bu düzen ekip içi görünürlüğü artırdı
+  - Database ekibi hedeflerini tam tamamladı; Backend ve AI görevlerinde bağımlılıklar (örn. streaming endpoint'in AI katmanına bağlanması) tahmin edilenden fazla zaman aldı
+  - AI tarafında projeye uygun modelin netleştirilmesi için ek araştırma ihtiyacı doğdu; bu Sprint 3'e taşındı
+  - Frontend'e bu sprintte hiç başlanamaması, Sprint 3'ün yükünü artırdı; Sprint 3'te frontend ve entegrasyon önceliklendirilecek
 
 ---
 
