@@ -116,7 +116,7 @@ Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmü�
 
   Kod implementasyonu (S01–S07) Sprint 2 backlog'una alınmıştır. Story'ler yapılacak işlere (task'lere) bölünmüştür. Detaylar: [specs/stories/README.md](specs/stories/README.md)
 
-- **Daily Scrum**: Daily Scrum toplantılarının zamansal sebeplerden ötürü Slack üzerinden yapılmasına karar verilmiştir. Daily Scrum toplantısı örneği jpeg veya word olarak Readme'de tarafımızdan paylaşılmaktadır: [Sprint 1 Daily Scrum Chats](https://github.com/OyunveUygulamaAkademisi/BootcampScrumTemplate/blob/main/ProjectManagement/Sprint1Documents/DailyScrumMeetingNotesSprint1.docx?raw=true)
+- **Daily Scrum**: Daily Scrum toplantılarının zamansal sebeplerden ötürü Slack üzerinden yapılmasına karar verilmiştir. Daily Scrum toplantısı örneği word olarak Readme'de tarafımızdan paylaşılmaktadır: [Sprint 1 Daily Scrum Chats](<kanban-board/SPRINT 1.docx>)
 
 - **Sprint board update**: Sprint 1 board görünümü:
 ![Sprint 1 Kanban Board](kanban-board/image1.png)
@@ -150,7 +150,7 @@ Alınan kararlar: Takım 320 olarak ekip tanışması ve rol dağılımı (PO, S
 
   Detaylı görev bazlı ilerleme: [progress.md](progress.md)
 
-- **Daily Scrum**: Daily Scrum toplantıları Slack ve Google Meets üzerinden yürütülmüştür. Sprint 2 sürecine ait toplantı notları yukarıdaki [Daily Scrum Notları](#daily-scrum-notları) bölümünde (07.07 – 19.07.2026) paylaşılmıştır.
+- **Daily Scrum**: Daily Scrum toplantıları Slack ve Google Meets üzerinden yürütülmüştür. Sprint 2 sürecine ait toplantı notları yukarıdaki [Daily Scrum Notları](#daily-scrum-notları) bölümünde (07.07 – 19.07.2026) özetlenmiştir. Toplantı kayıtları word olarak paylaşılmaktadır: [Sprint 2 Daily Scrum Chats](<kanban-board/SPRINT 2.docx>)
 
 - **Sprint board update**: Sprint 2 board görünümü (sprint başı ve sprint ilerleyişi):
 ![Sprint 2 Kanban Board - Ara Durum](kanban-board/image2.png)
