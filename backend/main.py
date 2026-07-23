@@ -6,6 +6,7 @@ FastAPI uygulama giriş noktası.
 from fastapi import FastAPI
 
 from backend.api.routes import health
+from backend.api.routes import chat
 from backend.api.middleware.error_handler import register_error_handlers
 from backend.utils.logger import setup_logging
 
@@ -26,3 +27,4 @@ register_error_handlers(app)
 
 # Router'ları kaydet
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")  # B5

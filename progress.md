@@ -109,11 +109,11 @@
 | B2 | Katmanlı mimariyi kur: `routes → controllers → services → repositories` | ✅  | S04 |
 | B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ✅ | S03 |
 | B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ⬜ | S03 |
-| B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ⬜ | S04 |
+| B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ✅ | S04 |
 | B6 | Pydantic request/response şemalarını tanımla | ✅ | S03, S04 |
 | B7 | Structured logging (structlog) ve global error handler ekle | ✅ | S04 |
 | B8 | Database connection + repository katmanını backend'e bağla | ✅ | S18 |
-| B9 | AI Agent streaming fonksiyonunu endpoint'e entegre et | ⬜ | S04, A3 |
+| B9 | AI Agent streaming fonksiyonunu endpoint'e entegre et | ✅ | S04, A3 |
 | B10 | `.env.example` dosyasını oluştur (DB, LLM, JWT placeholder) | ✅ | — |
 
 ---
