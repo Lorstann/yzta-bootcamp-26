@@ -112,7 +112,7 @@
 | B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ⬜ | S04 |
 | B6 | Pydantic request/response şemalarını tanımla | ✅ | S03, S04 |
 | B7 | Structured logging (structlog) ve global error handler ekle | ✅ | S04 |
-| B8 | Database connection + repository katmanını backend'e bağla | ⬜ | S18 |
+| B8 | Database connection + repository katmanını backend'e bağla | ✅ | S18 |
 | B9 | AI Agent streaming fonksiyonunu endpoint'e entegre et | ⬜ | S04, A3 |
 | B10 | `.env.example` dosyasını oluştur (DB, LLM, JWT placeholder) | ✅ | — |
 
