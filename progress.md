@@ -86,8 +86,8 @@
 
 | # | Görev | Durum | Story |
 |---|-------|-------|-------|
-| F1 | Vite + React 18 + TypeScript proje iskeletini oluştur | ⬜ | S01 |
-| F2 | Mobile-first responsive layout ve temel routing kur | ⬜ | S01 |
+| F1 | Vite + React 18 + TypeScript proje iskeletini oluştur | ✅ | S01 |
+| F2 | Mobile-first responsive layout ve temel routing kur | ✅ | S01 |
 | F3 | PWA manifest ve service worker (temel kabuk cache) ekle | ⬜ | S02 |
 | F4 | OpenAPI spec'e uygun API client / mock server entegrasyonu yap | ⬜ | S03, S05 |
 | F5 | Chat ekranı: mesaj listesi, input, gönder butonu | ⬜ | S05 |

@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --color-equa-ink: #0c1f1c;
+  --color-equa-muted: #3d5a54;
+  --color-equa-surface: #f3f7f5;
+  --color-equa-accent: #0f766e;
+  --color-equa-accent-soft: #ccfbf1;
+  --color-equa-line: #c5d4cf;
+}
+
+:root {
+  --color-bg: #e8f0ec;
+  --color-bg-mid: #d4e5df;
+  --color-accent: #0f766e;
+  --color-ink: #0c1f1c;
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 10% -20%, #b8d4c8 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, #c5ddd4 0%, transparent 50%),
+    linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-mid) 100%);
+  background-attachment: fixed;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
