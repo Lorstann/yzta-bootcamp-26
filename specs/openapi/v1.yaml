@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: Equa API
+  version: 1.0.0
+  description: |
+    Equa B2B2C MVP API contract (locked for parallel frontend/backend work).
+    Breaking changes require a new major path (`/api/v2`).
+servers:
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: system
+  - name: chat
+paths:
+  /api/v1/health:
+    get:
+      tags: [system]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/chat/stream:
+    post:
+      tags: [chat]
+      summary: Stream a chat reply as Server-Sent Events
+      operationId: streamChat
+      description: |
+        Accepts a student message and streams SSE events.
+        Each `data:` line is a JSON object with `type` of `chunk`, `done`, or `error`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: SSE stream of chat events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE payload lines of the form `data: {json}\n\n`.
+                  Event shapes:
+                  - `{"type":"chunk","data":"..."}`
+                  - `{"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["..."]}`
+                  - `{"type":"error","message":"..."}`
+              examples:
+                chunk:
+                  summary: Token chunk
+                  value: |
+                    data: {"type":"chunk","data":"Merhaba "}\n\n
+                done:
+                  summary: Stream complete
+                  value: |
+                    data: {"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["1 görev"]}\n\n
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+components:
+  schemas:
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+        details:
+          type: array
+          items: {}
+          default: []
+
+    SuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success, data, error, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+        error:
+          nullable: true
+          type: object
+        meta:
+          type: object
+          additionalProperties: true
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success, data, error, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        data:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ApiError'
+        meta:
+          type: object
+          additionalProperties: true
+
+    HealthData:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: healthy
+
+    HealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/HealthData'
+
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, session_id, message]
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant UUID (temporary until JWT claims; S18).
+        session_id:
+          type: string
+          format: uuid
+          description: Check-in session UUID.
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Student message text.
+
+    ChatSseChunkEvent:
+      type: object
+      additionalProperties: false
+      required: [type, data]
+      properties:
+        type:
+          type: string
+          enum: [chunk]
+        data:
+          type: string
+
+    ChatSseDoneEvent:
+      type: object
+      additionalProperties: false
+      required: [type, guardrail_triggered]
+      properties:
+        type:
+          type: string
+          enum: [done]
+        guardrail_triggered:
+          type: boolean
+        guardrail_category:
+          nullable: true
+          type: string
+          enum: [critical, dropout, depression]
+        weekly_tasks:
+          nullable: true
+          type: array
+          maxItems: 3
+          items:
+            type: string
+
+    ChatSseErrorEvent:
+      type: object
+      additionalProperties: false
+      required: [type, message]
+      properties:
+        type:
+          type: string
+          enum: [error]
+        message:
+          type: string
+
+    ChatSseEvent:
+      oneOf:
+        - $ref: '#/components/schemas/ChatSseChunkEvent'
+        - $ref: '#/components/schemas/ChatSseDoneEvent'
+        - $ref: '#/components/schemas/ChatSseErrorEvent'
+      discriminator:
+        propertyName: type

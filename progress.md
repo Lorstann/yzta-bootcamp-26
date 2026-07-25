@@ -88,8 +88,8 @@
 |---|-------|-------|-------|
 | F1 | Vite + React 18 + TypeScript proje iskeletini oluştur | ✅ | S01 |
 | F2 | Mobile-first responsive layout ve temel routing kur | ✅ | S01 |
-| F3 | PWA manifest ve service worker (temel kabuk cache) ekle | ⬜ | S02 |
-| F4 | OpenAPI spec'e uygun API client / mock server entegrasyonu yap | ⬜ | S03, S05 |
+| F3 | PWA manifest ve service worker (temel kabuk cache) ekle | ✅ | S02 |
+| F4 | OpenAPI spec'e uygun API client / mock server entegrasyonu yap | ✅ | S03, S05 |
 | F5 | Chat ekranı: mesaj listesi, input, gönder butonu | ⬜ | S05 |
 | F6 | SSE/streaming yanıtları chat balonunda canlı render et | ⬜ | S05 |
 | F7 | Loading, error ve empty state bileşenlerini ekle | ⬜ | S05 |
@@ -108,7 +108,7 @@
 | B1 | FastAPI + Uvicorn proje iskeletini oluştur (`backend/` klasör yapısı) | ✅  | S04 |
 | B2 | Katmanlı mimariyi kur: `routes → controllers → services → repositories` | ✅  | S04 |
 | B3 | Standart API response envelope'unu uygula (`success`, `data`, `error`) | ✅ | S03 |
-| B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ⬜ | S03 |
+| B4 | OpenAPI spec dosyasını yaz ve repo'da kilitle (`/api/v1/...`) | ✅ | S03 |
 | B5 | `POST /api/v1/chat/stream` streaming endpoint'ini aç | ✅ | S04 |
 | B6 | Pydantic request/response şemalarını tanımla | ✅ | S03, S04 |
 | B7 | Structured logging (structlog) ve global error handler ekle | ✅ | S04 |
@@ -122,7 +122,7 @@
 
 | Kilometre taşı | Kriter | Durum |
 |----------------|--------|-------|
-| **M1 — Kontrat kilitlendi** | OpenAPI spec + mock server frontend'de çalışıyor | ⬜ |
+| **M1 — Kontrat kilitlendi** | OpenAPI spec + mock server frontend'de çalışıyor | ✅ |
 | **M2 — Chat POC** | Mock veya gerçek backend ile streaming chat demo | ⬜ |
 | **M3 — DB + RLS** | 2 tenant seed verisi, cross-tenant test geçiyor | ⬜ |
 | **M4 — RAG POC** | Manuel müfredat yüklendi, retrieve + LLM yanıtı alındı | ⬜ |
@@ -147,8 +147,11 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 17 Temmuz 2026
+**Son güncelleme:** 25 Temmuz 2026
 
+- **F3 tamamlandı:** `vite-plugin-pwa` ile manifest + service worker; `public/pwa-192.png` / `pwa-512.png`, `offline.html`, shell precache; API istekleri NetworkOnly.
+- **F4 tamamlandı:** Kilitli kontrat `specs/openapi/v1.yaml`; typed client (`src/shared/api`); MSW mock (`src/mocks`) health + SSE chat; `npm run generate:api`.
+- **B4 / M1:** OpenAPI v1 repo'da kilitli; frontend mock Vitest smoke yeşil.
 - **A1 tamamlandı:** OpenAI varsayılan sağlayıcı olarak seçildi; `LLM_PROVIDER` ortam değişkeni `.env.example` ve `backend/config.py`'ye eklendi. `backend/services/llm/provider.py` modülü ile sağlayıcı/model ayarları merkezi okunuyor.
 - **A2 tamamlandı:** LangChain bağımlılıkları `requirements.txt`'e eklendi (`langchain`, `langchain-openai`, `langchain-anthropic`).
 - **A3 tamamlandı:** `backend/services/llm/streaming.py` — `stream_llm_response()` async generator; OpenAI/Anthropic streaming + API key yoksa mock mod. Backend B5/B9 endpoint'e bağlayacak.
