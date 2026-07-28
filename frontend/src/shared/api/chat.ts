@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from './config'
 import { ApiClientError } from './envelope'
 import { parseSse, type ChatSseEvent } from './sse'
+import { authHeaders } from '@/shared/auth/storage'
 
 export type ChatStreamRequest = {
   tenant_id: string
@@ -23,6 +24,7 @@ export async function* streamChat(
       headers: {
         Accept: 'text/event-stream',
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify(body),
     })

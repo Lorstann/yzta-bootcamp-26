@@ -12,7 +12,7 @@ describe('App shell', () => {
 
     expect(screen.getAllByText('Equa').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohbet').length).toBeGreaterThan(0)
-    expect(screen.getByText('Chat yakında')).toBeInTheDocument()
+    expect(screen.getByText('Mesaj yazarak başla')).toBeInTheDocument()
   })
 
   it('redirects index to chat content', () => {
@@ -22,6 +22,6 @@ describe('App shell', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Chat yakında')).toBeInTheDocument()
+    expect(screen.getByText('Mesaj yazarak başla')).toBeInTheDocument()
   })
 })

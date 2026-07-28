@@ -14,7 +14,7 @@ LlmProvider = Literal["openai", "anthropic", "bedrock"]
 
 class Settings(BaseSettings):
     # Veritabanı
-    database_url: str = "postgresql+asyncpg://equa:equa_dev@localhost:5432/equa"
+    database_url: str = "postgresql+asyncpg://equa:equa_dev@localhost:5433/equa"
 
     # Güvenlik
     jwt_secret: str = "change-me-in-production"

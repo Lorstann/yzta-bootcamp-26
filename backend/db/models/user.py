@@ -6,10 +6,10 @@ B8: User ve StudentProfile ORM modelleri.
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 from sqlalchemy import Boolean, Numeric, String, Text, TIMESTAMP, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from backend.db.base import Base
 
@@ -24,6 +24,7 @@ class User(Base):
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), server_default=text("'student'"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
@@ -61,6 +62,7 @@ class StudentProfile(Base):
     )
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    competencies: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), nullable=False
     )

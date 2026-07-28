@@ -73,9 +73,11 @@ async def stream_chat_response(
         yield {"type": "error", "message": "AI servisi şu an yanıt veremiyor."}
         return
 
-    # 3. [GOREVLER] bloğunu ayrıştır
+    # 3. [GOREVLER] bloğunu ayrıştır + S14 curriculum-only soft filter
     full_response = "".join(full_response_parts)
     weekly_tasks = _parse_tasks(full_response)
+    if weekly_tasks and curriculum_context:
+        weekly_tasks = _filter_tasks_to_curriculum(weekly_tasks, curriculum_context)
 
     yield {
         "type": "done",
@@ -83,6 +85,17 @@ async def stream_chat_response(
         "guardrail_category": None,
         "weekly_tasks": weekly_tasks,
     }
+
+
+def _filter_tasks_to_curriculum(tasks: list[str], curriculum_context: str) -> list[str]:
+    """S14: Drop tasks with no lexical overlap vs retrieved curriculum."""
+    ctx = curriculum_context.lower()
+    kept: list[str] = []
+    for task in tasks:
+        tokens = [t for t in task.lower().replace(",", " ").split() if len(t) > 3]
+        if not tokens or any(tok in ctx for tok in tokens):
+            kept.append(task)
+    return kept or tasks[:1]
 
 
 def _parse_tasks(text: str) -> list[str] | None:

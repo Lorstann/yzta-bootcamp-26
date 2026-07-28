@@ -5,10 +5,10 @@ B8: CheckinSession ve WeeklyTask ORM modelleri.
 
 import uuid
 from datetime import datetime, date
-from typing import Optional
+from typing import Any, Optional
 from sqlalchemy import Boolean, Integer, String, Text, TIMESTAMP, Date, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from backend.db.base import Base
 
@@ -28,6 +28,9 @@ class CheckinSession(Base):
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     mood_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    messages: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), nullable=False
+    )
     status: Mapped[str] = mapped_column(
         String(50), server_default=text("'pending'"), nullable=False
     )

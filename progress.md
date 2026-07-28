@@ -1,7 +1,7 @@
 # Equa — Proje İlerleme Takibi
 
 **Takım:** 320  
-**Durum:** Sprint 1 tamamlandı (planlama) · Sprint 2 geliştirme aşamasına geçiliyor  
+**Durum:** Sprint 1 POC kapatıldı · Sprint 2–3 MVP özellikleri landed (auth, check-in, RAG, dashboard, E2E smoke)  
 **Kaynak dokümanlar:** [PRD](specs/prds/prd.md) · [Stories](specs/stories/README.md) · [Tech Stack](specs/techstack.md)
 
 ---
@@ -70,10 +70,10 @@
 | A1 | LLM sağlayıcısını seç ve ortam değişkenlerini tanımla (Bedrock veya OpenAI/Anthropic) | ✅ | S04 |
 | A2 | LangChain veya LlamaIndex bağımlılıklarını backend projesine ekle | ✅ | S06 |
 | A3 | Basit streaming yanıt fonksiyonu yaz (LLM → token chunk) | ✅ | S04 |
-| A4 | Manuel müfredat metni/PDF için chunk + embedding pipeline'ını oluştur | ⬜ | S06 |
-| A5 | pgvector üzerinde similarity search (top-k retrieve) POC'unu test et | ⬜ | S06 |
+| A4 | Manuel müfredat metni/PDF için chunk + embedding pipeline'ını oluştur | ✅ | S06 |
+| A5 | pgvector üzerinde similarity search (top-k retrieve) POC'unu test et | ✅ | S06 |
 | A6 | Check-in akışı için sistem prompt'u ve soru şablonunu tasarla (≤ 2 dk) | ✅ | S07 |
-| A7 | RAG context inject: retrieve edilen müfredat chunk'larını prompt'a ekle | ⬜ | S06, S13 |
+| A7 | RAG context inject: retrieve edilen müfredat chunk'larını prompt'a ekle | ✅ | S06, S13 |
 | A8 | Guardrails keyword listesi taslağını hazırla (depresyon, intihar, bırakma) | ✅ | S16 |
 
 ---
@@ -90,10 +90,10 @@
 | F2 | Mobile-first responsive layout ve temel routing kur | ✅ | S01 |
 | F3 | PWA manifest ve service worker (temel kabuk cache) ekle | ✅ | S02 |
 | F4 | OpenAPI spec'e uygun API client / mock server entegrasyonu yap | ✅ | S03, S05 |
-| F5 | Chat ekranı: mesaj listesi, input, gönder butonu | ⬜ | S05 |
-| F6 | SSE/streaming yanıtları chat balonunda canlı render et | ⬜ | S05 |
-| F7 | Loading, error ve empty state bileşenlerini ekle | ⬜ | S05 |
-| F8 | Mock-API ile uçtan uca chat akışını demo edilebilir hale getir | ⬜ | S05 |
+| F5 | Chat ekranı: mesaj listesi, input, gönder butonu | ✅ | S05 |
+| F6 | SSE/streaming yanıtları chat balonunda canlı render et | ✅ | S05 |
+| F7 | Loading, error ve empty state bileşenlerini ekle | ✅ | S05 |
+| F8 | Mock-API ile uçtan uca chat akışını demo edilebilir hale getir | ✅ | S05 |
 
 ---
 
@@ -123,9 +123,9 @@
 | Kilometre taşı | Kriter | Durum |
 |----------------|--------|-------|
 | **M1 — Kontrat kilitlendi** | OpenAPI spec + mock server frontend'de çalışıyor | ✅ |
-| **M2 — Chat POC** | Mock veya gerçek backend ile streaming chat demo | ⬜ |
-| **M3 — DB + RLS** | 2 tenant seed verisi, cross-tenant test geçiyor | ⬜ |
-| **M4 — RAG POC** | Manuel müfredat yüklendi, retrieve + LLM yanıtı alındı | ⬜ |
+| **M2 — Chat POC** | Mock veya gerçek backend ile streaming chat demo | ✅ |
+| **M3 — DB + RLS** | 2 tenant seed verisi, cross-tenant test geçiyor | ✅ |
+| **M4 — RAG POC** | Manuel müfredat yüklendi, retrieve + LLM yanıtı alındı | ✅ |
 
 ---
 
@@ -147,7 +147,14 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 25 Temmuz 2026
+**Son güncelleme:** 28 Temmuz 2026
+
+- **F5–F8 / M2 tamamlandı:** Chat UI mesaj listesi, SSE streaming, empty/loading/error, MSW Vitest smoke.
+- **A4/A5/A7 / M4 tamamlandı:** chunk+embed ingest, pgvector retrieve, chat prompt inject; `python -m backend.scripts.ingest_curriculum`.
+- **M3 tamamlandı:** `pytest backend/tests` RLS izolasyon suite yeşil (`equa_app` role).
+- **Plan 2–5:** JWT auth, check-in/task persist, onboarding/LinkedIn upload, capacity load-balance, HIGH_RISK sinyali, kurum dashboard + ROI/XAI.
+- **Plan 6:** Playwright smoke (`frontend/e2e`); seed 2 tenant + coordinator.
+- **Not:** Host Postgres çakışması için Docker port `5433:5432` (bkz. `docker-compose.yml` / `.env.example`).
 
 - **F3 tamamlandı:** `vite-plugin-pwa` ile manifest + service worker; `public/pwa-192.png` / `pwa-512.png`, `offline.html`, shell precache; API istekleri NetworkOnly.
 - **F4 tamamlandı:** Kilitli kontrat `specs/openapi/v1.yaml`; typed client (`src/shared/api`); MSW mock (`src/mocks`) health + SSE chat; `npm run generate:api`.

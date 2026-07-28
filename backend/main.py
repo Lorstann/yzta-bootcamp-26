@@ -4,13 +4,12 @@ FastAPI uygulama giriş noktası.
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import health
-from backend.api.routes import chat
+from backend.api.routes import health, chat, auth, checkins, profiles, institution
 from backend.api.middleware.error_handler import register_error_handlers
 from backend.utils.logger import setup_logging
 
-# Loglama sistemini başlat
 setup_logging()
 
 app = FastAPI(
@@ -22,9 +21,19 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-# Global error handler'ları kaydet (B7)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 register_error_handlers(app)
 
-# Router'ları kaydet
 app.include_router(health.router, prefix="/api/v1")
-app.include_router(chat.router, prefix="/api/v1")  # B5
+app.include_router(chat.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(checkins.router, prefix="/api/v1")
+app.include_router(profiles.router, prefix="/api/v1")
+app.include_router(institution.router, prefix="/api/v1")

@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 .env
 postgres_data/
+
+.pytest_cache/
+frontend/test-results/
+frontend/playwright-report/
+

@@ -1,6 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import { getStoredUser } from '@/shared/auth/storage'
 
 export function BottomNav() {
+  const user = getStoredUser()
+  const showInstitution =
+    user && ['instructor', 'admin'].includes(user.role)
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-20 border-t border-equa-line/60 bg-equa-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden"
@@ -22,25 +27,49 @@ export function BottomNav() {
           </NavLink>
         </li>
         <li className="flex-1">
-          <span
-            className="flex cursor-not-allowed flex-col items-center gap-0.5 px-2 py-2.5 text-xs font-medium text-equa-line"
-            aria-disabled="true"
-            title="Yakında"
+          <NavLink
+            to="/checkin"
+            className={({ isActive }) =>
+              [
+                'flex flex-col items-center gap-0.5 px-2 py-2.5 text-xs font-medium no-underline transition-colors',
+                isActive ? 'text-equa-accent' : 'text-equa-muted',
+              ].join(' ')
+            }
           >
             <CheckIcon />
             Check-in
-          </span>
+          </NavLink>
         </li>
         <li className="flex-1">
-          <span
-            className="flex cursor-not-allowed flex-col items-center gap-0.5 px-2 py-2.5 text-xs font-medium text-equa-line"
-            aria-disabled="true"
-            title="Yakında"
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              [
+                'flex flex-col items-center gap-0.5 px-2 py-2.5 text-xs font-medium no-underline transition-colors',
+                isActive ? 'text-equa-accent' : 'text-equa-muted',
+              ].join(' ')
+            }
           >
             <ProfileIcon />
             Profil
-          </span>
+          </NavLink>
         </li>
+        {showInstitution ? (
+          <li className="flex-1">
+            <NavLink
+              to="/institution"
+              className={({ isActive }) =>
+                [
+                  'flex flex-col items-center gap-0.5 px-2 py-2.5 text-xs font-medium no-underline transition-colors',
+                  isActive ? 'text-equa-accent' : 'text-equa-muted',
+                ].join(' ')
+              }
+            >
+              <DashIcon />
+              Kurum
+            </NavLink>
+          </li>
+        ) : null}
       </ul>
     </nav>
   )
@@ -83,6 +112,19 @@ function ProfileIcon() {
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function DashIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
       />
     </svg>
   )

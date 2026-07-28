@@ -1,8 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import { BottomNav } from '@/components/BottomNav'
+import { clearAuth, getStoredUser } from '@/shared/auth/storage'
 
 export function AppShell() {
+  const user = getStoredUser()
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-x-hidden lg:flex-row">
       <aside className="hidden min-h-0 w-56 shrink-0 flex-col border-r border-equa-line/60 bg-equa-surface/70 px-4 py-6 backdrop-blur-sm lg:flex">
@@ -21,21 +24,66 @@ export function AppShell() {
           >
             Sohbet
           </NavLink>
-          <span
-            className="cursor-not-allowed rounded-lg px-3 py-2.5 text-sm font-medium text-equa-line"
-            aria-disabled="true"
-            title="Yakında"
+          <NavLink
+            to="/checkin"
+            className={({ isActive }) =>
+              [
+                'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-equa-accent text-white'
+                  : 'text-equa-muted hover:bg-equa-accent-soft hover:text-equa-ink',
+              ].join(' ')
+            }
           >
             Check-in
-          </span>
-          <span
-            className="cursor-not-allowed rounded-lg px-3 py-2.5 text-sm font-medium text-equa-line"
-            aria-disabled="true"
-            title="Yakında"
+          </NavLink>
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              [
+                'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-equa-accent text-white'
+                  : 'text-equa-muted hover:bg-equa-accent-soft hover:text-equa-ink',
+              ].join(' ')
+            }
           >
             Profil
-          </span>
+          </NavLink>
+          {user && ['instructor', 'admin'].includes(user.role) ? (
+            <NavLink
+              to="/institution"
+              className={({ isActive }) =>
+                [
+                  'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-equa-accent text-white'
+                    : 'text-equa-muted hover:bg-equa-accent-soft hover:text-equa-ink',
+                ].join(' ')
+              }
+            >
+              Kurum
+            </NavLink>
+          ) : null}
         </nav>
+        <div className="mt-auto pt-6 text-xs text-equa-muted">
+          {user ? (
+            <button
+              type="button"
+              className="text-equa-accent underline"
+              onClick={() => {
+                clearAuth()
+                window.location.href = '/login'
+              }}
+            >
+              Çıkış ({user.email})
+            </button>
+          ) : (
+            <NavLink to="/login" className="text-equa-accent underline">
+              Giriş yap
+            </NavLink>
+          )}
+        </div>
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

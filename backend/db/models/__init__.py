@@ -8,6 +8,7 @@ from backend.db.models.tenant import Tenant
 from backend.db.models.user import User, StudentProfile
 from backend.db.models.curriculum import Curriculum, CurriculumChunk
 from backend.db.models.checkin import CheckinSession, WeeklyTask
+from backend.db.models.risk import RiskSignal
 
 __all__ = [
     "Tenant",
@@ -17,4 +18,5 @@ __all__ = [
     "CurriculumChunk",
     "CheckinSession",
     "WeeklyTask",
+    "RiskSignal",
 ]
