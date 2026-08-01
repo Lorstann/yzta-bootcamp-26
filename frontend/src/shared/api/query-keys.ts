@@ -16,5 +16,6 @@ export const queryKeys = {
     overview: () => ['institution', 'overview'] as const,
     usage: () => ['institution', 'usage'] as const,
     me: () => ['institution', 'me'] as const,
+    curriculum: () => ['institution', 'curriculum'] as const,
   },
 }

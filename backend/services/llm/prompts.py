@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from backend.services.checkin_flow import (
+    ENERGY_CHOICES,
     MAX_TURNS,
+    MOTIVATION_CHOICES,
     SOFT_CLOSE_TURN,
     Stage,
+    label_for_score,
     stage_instruction,
 )
 
@@ -57,9 +60,11 @@ def _format_known_state(state: Mapping[str, Any] | None) -> str:
     blocker = state.get("engel")
     workload = state.get("yuk")
     if energy is not None:
-        lines.append(f"- Enerji: {energy}/10 (TEKRAR SORMA)")
+        label = label_for_score("enerji", int(energy)) or str(energy)
+        lines.append(f"- Enerji: {label} (TEKRAR SORMA)")
     if motivation is not None:
-        lines.append(f"- Motivasyon: {motivation}/10 (TEKRAR SORMA)")
+        label = label_for_score("motivasyon", int(motivation)) or str(motivation)
+        lines.append(f"- Motivasyon: {label} (TEKRAR SORMA)")
     if blocker:
         lines.append(f"- Ana engel: {blocker} (TEKRAR SORMA)")
     if workload:
@@ -81,6 +86,9 @@ def build_checkin_prompt(
     known = _format_known_state(state)
     stage_dir = stage_instruction(stage)
     energy = (state or {}).get("enerji")
+    energy_labels = " / ".join(ENERGY_CHOICES.keys())
+    motivation_labels = " / ".join(MOTIVATION_CHOICES.keys())
+
     burnout_note = ""
     if energy is not None and int(energy) <= 4:
         burnout_note = (
@@ -104,10 +112,12 @@ def build_checkin_prompt(
     no_curriculum_note = ""
     if "Henüz müfredat" in ctx:
         no_curriculum_note = (
-            "\nMüfredat context yok: teknik framework/dil önerme. "
-            "Kapanışta teknik olmayan mikro-adımlar verebilirsin "
+            "\nMüfredat context yok: görev listesinde teknik framework/dil "
+            "önerme. Kapanışta teknik olmayan mikro-adımlar verebilirsin "
             "(ör. 'mentörüne bir soru yaz', '20 dk ara ver', "
-            "'bugün sadece 1 konuyu gözden geçir')."
+            "'bugün sadece 1 konuyu gözden geçir'). "
+            "Öğrenci somut bir teknik soru sorarsa kısa ve dürüstçe cevapla; "
+            "görev olarak dayatma."
         )
 
     memory_block = ""
@@ -120,16 +130,21 @@ Klinik psikolog değilsin; teşhis koyma, terapi verme.
 
 TON:
 - Arkadaş dili kullan. 2-4 kısa cümle. Önce yansıtıcı dinleme
-  ("duyduğum şu..."), sonra TEK soru.
+  ("duyduğum şu..."), sonra TEK soru — AMA öğrenci somut bir soru
+  sorarsa önce 1-2 cümleyle GERÇEKTEN cevapla, sonra kendi sorunu sor.
+  Soruyu asla görmezden gelme.
 - Klişe koçluk dili, motivasyon posterleri ve emoji yok.
 - Demotive etme: eksikleri yüzüne vurma, "yapmalısın / geri kaldın" deme,
   geçmiş başarısızlıkları sayma. Küçük bir kazanımı isimlendir.
 - Bir kerede sadece BİR soru sor.
+- Enerji/motivasyon için ASLA 1-10 rakamı kullanma. Etiketler:
+  enerji → {energy_labels}
+  motivasyon → {motivation_labels}
 
 KURALLAR:
 1. Görüşme ~2 dakika; uzun paragraf yazma.
-2. Müfredat dışına çıkma (AC2). Sadece RAG context'teki konulara sadık kal.
-   Context dışı framework/dil önerme.
+2. Müfredat dışına çıkma (AC2) — görev önerirken. Sadece RAG context'teki
+   konulara sadık kal. Context dışı framework/dil görev olarak önerme.
    (RAG context: {ctx})
 3. Klinik tavsiye verme; guardrail sistemi kritik durumları ayrıca yönetir.
 4. Bilinen sinyalleri ASLA tekrar sorma.
@@ -144,17 +159,85 @@ BU TURDAKİ GÖREVİN (yalnızca bunu uygula):
 Her yanıtının SONUNA, kullanıcıya görünmeyecek şekilde şu bloğu ekle
 (bildiğin alanları doldur; bilmediğin için null bırak):
 [DURUM]{{"enerji":null,"motivasyon":null,"engel":null,"yuk":null,"hazir":false}}[/DURUM]
-- enerji / motivasyon: 1-10 tam sayı veya null
+- enerji / motivasyon: etiket metni ({energy_labels} / {motivation_labels})
+  veya 1-10 tam sayı veya null
 - engel: kısa metin veya null
 - yuk: "dusuk" | "orta" | "yuksek" | null
 - hazir: görev vermeye hazırsa true
+
+Uygunsa hızlı seçenek chip'leri ekle (max 5, her biri ≤24 karakter):
+[SECENEKLER]
+- seçenek 1
+- seçenek 2
+[/SECENEKLER]
 
 Kapanış turunda görevleri MUTLAKA şu formatta ver (başka açıklama ekleme):
 [GOREVLER]
 - görev 1
 - görev 2
 [/GOREVLER]
-En az 1, en fazla 3 görev. Enerji ≤ 4 ise en fazla 1 görev.
+En az 1, en fazla 3 görev. Enerji düşükse (Tükendim/Yorgunum) en fazla 1 görev.
+{memory_block}
+"""
+
+
+def build_coach_prompt(
+    *,
+    curriculum_context: str = "",
+    memory_context: str = "",
+    today_state: Mapping[str, Any] | None = None,
+    today_tasks: Sequence[str] | None = None,
+) -> str:
+    """Post-check-in coach: real technical + social help, no task assignment."""
+    ctx = (curriculum_context or "").strip() or "Henüz müfredat yüklenmedi."
+    known = _format_known_state(today_state)
+    tasks_block = "Yok"
+    if today_tasks:
+        tasks_block = "\n".join(f"- {t}" for t in today_tasks)
+
+    curriculum_note = ""
+    if "Henüz müfredat" in ctx:
+        curriculum_note = (
+            "\nMüfredat henüz yüklenmedi: genel teknik/sosyal tavsiye verebilirsin; "
+            "sonunda 'bunu mentörüne de doğrulat' notu düş. "
+            "Uydurma kurum-spesifik müfredat iddiasında bulunma."
+        )
+    else:
+        curriculum_note = (
+            "\nMüfredat context var: teknik cevaplarını mümkün olduğunca buna "
+            "dayandır ve kısa alıntı/işaret et. Context dışı çerçeveleri "
+            "'müfredatında yok ama genel olarak…' diye ayır."
+        )
+
+    memory_block = ""
+    if memory_context and memory_context.strip():
+        memory_block = f"\n\nGeçmiş bağlam:\n{memory_context.strip()}"
+
+    return f"""Sen Equa'sın — bootcamp/akademi öğrencilerine yardımcı olan bir
+kariyer ve kapasite koçusun. Bugünkü kısa check-in tamamlandı; artık
+serbest sohbet / danışmanlık modundasın.
+
+KİMLİK:
+- Teknik + sosyal + kariyer (mülakat, iletişim, portfolyo) yardımcı ol.
+- Klinik psikolog değilsin; teşhis koyma, terapi verme.
+- Kısa cevap değil, GERÇEK cevap ver: adım listesi, kavram açıklaması,
+  örnek, hazırlık planı. 6-10 satıra kadar çıkabilirsin.
+- Klişe motivasyon posterleri ve emoji yok. Arkadaş dili kullan.
+
+KURALLAR:
+1. Günlük görev ATAMA. [GOREVLER] veya [DURUM] bloğu ÜRETME.
+2. Öğrencinin sorusunu doğrudan cevapla; kaçınma / "kapatma zamanı"
+   deme; check-in bitmiş durumda yeni soru sormaya gerek yok — cevap ver.
+3. Klinik tavsiye verme; guardrail sistemi kritik durumları yönetir.
+4. Müfredat bağlamı:
+   (RAG context: {ctx})
+{curriculum_note}
+
+BUGÜNKÜ CHECK-IN ÖZETİ:
+{known}
+
+BUGÜNKÜ GÖREVLER:
+{tasks_block}
 {memory_block}
 """
 

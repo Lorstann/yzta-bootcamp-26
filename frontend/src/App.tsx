@@ -5,6 +5,7 @@ import { ChatPage } from '@/pages/ChatPage'
 import { CheckinPage } from '@/pages/CheckinPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { InstitutionAssistantPage } from '@/pages/InstitutionAssistantPage'
+import { InstitutionCurriculumPage } from '@/pages/InstitutionCurriculumPage'
 import { InstitutionPage } from '@/pages/InstitutionPage'
 import { InstitutionProfilePage } from '@/pages/InstitutionProfilePage'
 import { LandingPage } from '@/pages/LandingPage'
@@ -131,6 +132,14 @@ export default function App() {
           element={
             <StaffRoute>
               <InstitutionAssistantPage />
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="institution/curriculum"
+          element={
+            <StaffRoute>
+              <InstitutionCurriculumPage />
             </StaffRoute>
           }
         />

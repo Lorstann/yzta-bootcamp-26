@@ -9,6 +9,7 @@ import {
   Building2,
   Bot,
   LogOut,
+  BookOpen,
 } from 'lucide-react'
 import { clearAuth, getStoredUser } from '@/shared/auth/storage'
 
@@ -48,6 +49,12 @@ export function BottomNav() {
             <NavLink to="/institution/assistant" className={linkClass}>
               <Bot size={20} aria-hidden />
               Asistan
+            </NavLink>
+          </li>
+          <li className="flex-1">
+            <NavLink to="/institution/curriculum" className={linkClass}>
+              <BookOpen size={20} aria-hidden />
+              Müfredat
             </NavLink>
           </li>
           <li className="flex-1">

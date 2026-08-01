@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { ChatInput } from '@/features/chat/ChatInput'
 import { MessageBubble } from '@/features/chat/MessageBubble'
+import { QuickReplies } from '@/features/chat/QuickReplies'
+import { energyLabel, motivationLabel } from '@/features/chat/scales'
 import { useChatStream } from '@/features/chat/useChatStream'
 import type { ChatMessage } from '@/features/chat/types'
 import { apiGet } from '@/shared/api/client'
@@ -32,6 +34,7 @@ export function ChatPage() {
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [seedEnergy, setSeedEnergy] = useState<number | null>(null)
   const [seedMotivation, setSeedMotivation] = useState<number | null>(null)
+  const [sessionStatus, setSessionStatus] = useState<string>('in_progress')
   const {
     messages,
     status,
@@ -40,6 +43,8 @@ export function ChatPage() {
     guardrail,
     checkinCompleted,
     checkinState,
+    quickReplies,
+    chatMode,
     sendMessage,
     retry,
     hydrateMessages,
@@ -58,6 +63,7 @@ export function ChatPage() {
       .then((session) => {
         if (cancelled) return
         setSessionId(session.id)
+        setSessionStatus(session.status)
         if (session.energy_level != null) setSeedEnergy(session.energy_level)
         if (session.motivation_level != null)
           setSeedMotivation(session.motivation_level)
@@ -98,7 +104,7 @@ export function ChatPage() {
     const el = listRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
-  }, [messages, isStreaming])
+  }, [messages, isStreaming, quickReplies])
 
   if (sessionLoading) {
     return (
@@ -133,6 +139,13 @@ export function ChatPage() {
     checkinState?.enerji ?? seedEnergy
   const motivation =
     checkinState?.motivasyon ?? seedMotivation
+  const energyText = energyLabel(energy)
+  const motivationText = motivationLabel(motivation)
+
+  const inCoachMode =
+    chatMode === 'coach' ||
+    checkinCompleted ||
+    sessionStatus === 'completed'
 
   const aiChipLabel =
     status === 'streaming' ? 'AI yazıyor' : status === 'idle' ? 'AI Canlı' : null
@@ -146,19 +159,23 @@ export function ChatPage() {
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-equa-line/20 px-4 py-3 lg:px-6">
           <div className="min-w-0">
             <h1 className="font-display text-lg font-bold text-equa-ink lg:text-xl">
-              Günlük Check-in
+              {inCoachMode ? 'AI Koç' : 'Günlük Check-in'}
             </h1>
             <p className="text-sm text-equa-muted">
-              AI koçunla kısa bir check-in yap.
+              {inCoachMode
+                ? 'Takıldığın bir şey varsa sor — teknik veya sosyal.'
+                : 'AI koçunla kısa bir check-in yap.'}
             </p>
-            {(energy != null || motivation != null) && (
+            {(energyText != null || motivationText != null) && (
               <p
                 className="mt-1 text-xs text-equa-muted"
                 data-testid="checkin-signals"
               >
-                {energy != null ? `Enerji ${energy}/10` : null}
-                {energy != null && motivation != null ? ' · ' : null}
-                {motivation != null ? `Motivasyon ${motivation}/10` : null}
+                {energyText != null ? `Enerji: ${energyText}` : null}
+                {energyText != null && motivationText != null ? ' · ' : null}
+                {motivationText != null
+                  ? `Motivasyon: ${motivationText}`
+                  : null}
               </p>
             )}
           </div>
@@ -237,10 +254,10 @@ export function ChatPage() {
               role="status"
               data-testid="checkin-complete"
             >
-              <p className="font-medium">Bugünkü check-in tamam</p>
+              <p className="font-medium">Check-in tamam</p>
               <p className="mt-1 text-equa-muted">
-                Durumunu kaydettik. Görevlerine göz atabilir veya özeti
-                Check-in sayfasında görebilirsin.
+                Takıldığın bir şey varsa sormaya devam et. Görev özetini
+                Check-in sayfasında da görebilirsin.
               </p>
               <Link
                 to="/checkin"
@@ -273,8 +290,13 @@ export function ChatPage() {
           data-testid="chat-input-slot"
           aria-label="Mesaj yazma alanı"
         >
+          <QuickReplies
+            replies={quickReplies}
+            disabled={isStreaming}
+            onSelect={(label) => void sendMessage(label)}
+          />
           <ChatInput
-            disabled={isStreaming || checkinCompleted}
+            disabled={isStreaming}
             onSend={sendMessage}
           />
         </div>

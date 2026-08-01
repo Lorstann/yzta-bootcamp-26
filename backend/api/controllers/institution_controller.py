@@ -8,11 +8,13 @@ import json
 import logging
 import uuid
 
+from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies.auth import CurrentUser
 from backend.domain.errors.app_error import AppError
+from backend.domain.schemas.curriculum import CurriculumCreateText
 from backend.domain.schemas.institution import (
     InstitutionAssistantRequest,
     TenantSettingsUpdate,
@@ -108,3 +110,60 @@ async def assistant_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+async def list_curriculum(db: AsyncSession, user: CurrentUser):
+    from backend.services import curriculum_service
+
+    rows = await curriculum_service.list_curricula(db, tenant_id=user.tenant_id)
+    return ok(data={"curricula": rows})
+
+
+async def upload_curriculum(
+    db: AsyncSession, user: CurrentUser, file: UploadFile, title: str | None = None
+):
+    from backend.services import curriculum_service
+
+    if user.role != "admin":
+        raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+    data = await file.read()
+    result = await curriculum_service.upload_curriculum_file(
+        db,
+        tenant_id=user.tenant_id,
+        uploaded_by=user.id,
+        filename=file.filename or "upload.bin",
+        data=data,
+        title=title,
+    )
+    return ok(data=result, status_code=201)
+
+
+async def create_curriculum_text(
+    db: AsyncSession, user: CurrentUser, body: CurriculumCreateText
+):
+    from backend.services import curriculum_service
+
+    if user.role != "admin":
+        raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+    result = await curriculum_service.create_curriculum_from_text(
+        db,
+        tenant_id=user.tenant_id,
+        uploaded_by=user.id,
+        title=body.title,
+        text=body.text,
+        description=body.description,
+    )
+    return ok(data=result, status_code=201)
+
+
+async def delete_curriculum(
+    db: AsyncSession, user: CurrentUser, curriculum_id: uuid.UUID
+):
+    from backend.services import curriculum_service
+
+    if user.role != "admin":
+        raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+    result = await curriculum_service.soft_delete_curriculum(
+        db, tenant_id=user.tenant_id, curriculum_id=curriculum_id
+    )
+    return ok(data=result)

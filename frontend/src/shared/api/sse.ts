@@ -21,7 +21,9 @@ export type ChatSseDoneEvent = {
   checkin_completed?: boolean
   state?: CheckinStatePayload | null
   stage?: string
-  turn_count?: number
+  turn_count?: number | null
+  mode?: 'checkin' | 'coach'
+  quick_replies?: string[] | null
 }
 
 export type ChatSseErrorEvent = {

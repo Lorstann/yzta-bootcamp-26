@@ -5,9 +5,9 @@ B5/B9: Chat servis katmanı.
 Akış:
   1. Guardrail kontrolü (senkron)
   2. Guardrail tetiklendiyse → yönlendirme mesajını stream et
-  3. Tetiklenmediyse → LLM'i stream et (history + stage-aware prompt)
-  4. [DURUM] / [GOREVLER] bloklarını ayıkla; temiz metni kullanıcıya ver
-  5. Yapısal sinyalleri parse et; görevleri çıkar
+  3. Tetiklenmediyse → LLM'i stream et (history + mode-aware prompt)
+  4. [DURUM] / [GOREVLER] / [SECENEKLER] bloklarını ayıkla; temiz metni kullanıcıya ver
+  5. Yapısal sinyalleri parse et; görevleri / quick replies çıkar
 """
 
 from __future__ import annotations
@@ -15,19 +15,21 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, AsyncIterator, Mapping
+from typing import Any, AsyncIterator, Mapping, Sequence
 
 from backend.services.checkin_flow import (
     MAX_TURNS,
     VALID_WORKLOAD,
     CheckinState,
+    coerce_scale,
+    default_quick_replies,
     empty_state,
     merge_state,
     next_stage,
     should_force_complete,
 )
 from backend.services.llm.guardrails import check_for_risks
-from backend.services.llm.prompts import build_checkin_prompt
+from backend.services.llm.prompts import build_checkin_prompt, build_coach_prompt
 from backend.services.llm.streaming import stream_llm_response
 
 logger = logging.getLogger(__name__)
@@ -40,17 +42,23 @@ _STATE_BLOCK_RE = re.compile(
     r"\[DURUM\](.*?)\[/DURUM\]",
     re.DOTALL | re.IGNORECASE,
 )
+_CHOICE_BLOCK_RE = re.compile(
+    r"\[SECENEKLER\](.*?)\[/SECENEKLER\]",
+    re.DOTALL | re.IGNORECASE,
+)
 
 # Tags that must never reach the user bubble
-_HIDDEN_OPEN = ("[DURUM]", "[GOREVLER]")
-_HIDDEN_CLOSE = ("[/DURUM]", "[/GOREVLER]")
+_HIDDEN_OPEN = ("[DURUM]", "[GOREVLER]", "[SECENEKLER]")
+_HIDDEN_CLOSE = ("[/DURUM]", "[/GOREVLER]", "[/SECENEKLER]")
 _MAX_TAG_LEN = max(len(t) for t in (*_HIDDEN_OPEN, *_HIDDEN_CLOSE))
+_MAX_QUICK_REPLIES = 5
+_MAX_QUICK_REPLY_LEN = 24
 
 
 class StreamSanitizer:
     """
-    Strip [DURUM]...[/DURUM] and [GOREVLER]...[/GOREVLER] across chunk
-    boundaries. Accumulates raw text for post-parse; yields clean text.
+    Strip [DURUM]/[GOREVLER]/[SECENEKLER] across chunk boundaries.
+    Accumulates raw text for post-parse; yields clean text.
     """
 
     def __init__(self) -> None:
@@ -121,16 +129,6 @@ class StreamSanitizer:
         return "".join(self.raw_parts)
 
 
-def _clamp_int(value: Any, lo: int, hi: int) -> int | None:
-    try:
-        n = int(value)
-    except (TypeError, ValueError):
-        return None
-    if n < lo or n > hi:
-        return None
-    return n
-
-
 def parse_state(text: str) -> CheckinState | None:
     """Extract and validate [DURUM]{...}[/DURUM] JSON block."""
     match = _STATE_BLOCK_RE.search(text)
@@ -146,8 +144,8 @@ def parse_state(text: str) -> CheckinState | None:
         return None
 
     state: CheckinState = empty_state()
-    energy = _clamp_int(data.get("enerji"), 1, 10)
-    motivation = _clamp_int(data.get("motivasyon"), 1, 10)
+    energy = coerce_scale("enerji", data.get("enerji"))
+    motivation = coerce_scale("motivasyon", data.get("motivasyon"))
     if energy is not None:
         state["enerji"] = energy
     if motivation is not None:
@@ -180,6 +178,27 @@ def _parse_tasks(text: str) -> list[str] | None:
         if line.strip().startswith(("-", "•", "*"))
     ]
     return tasks[:3] if tasks else None
+
+
+def _parse_quick_replies(text: str) -> list[str] | None:
+    """[SECENEKLER]...[/SECENEKLER] bloğundan chip listesini çıkarır."""
+    match = _CHOICE_BLOCK_RE.search(text)
+    if not match:
+        return None
+
+    raw = match.group(1)
+    replies: list[str] = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(("-", "•", "*")):
+            continue
+        label = stripped.lstrip("- •*").strip()
+        if not label:
+            continue
+        replies.append(label[:_MAX_QUICK_REPLY_LEN])
+        if len(replies) >= _MAX_QUICK_REPLIES:
+            break
+    return replies or None
 
 
 _TECHNICAL_HINTS = (
@@ -277,11 +296,11 @@ async def stream_chat_response(
     memory_context: str = "",
 ) -> AsyncIterator[dict]:
     """
-    Öğrenci mesajına yanıt olarak SSE chunk'larını yield eder.
+    Check-in mode: stage-aware streaming with signal/task extraction.
 
     Yields:
         {"type": "chunk", "data": "<temiz metin>"}
-        {"type": "done", ... state, daily_tasks, checkin_completed}
+        {"type": "done", ... state, daily_tasks, checkin_completed, quick_replies}
         {"type": "error", "message": "..."}
     """
     # 1. Guardrail
@@ -293,6 +312,7 @@ async def stream_chat_response(
             yield {"type": "chunk", "data": word + " "}
         yield {
             "type": "done",
+            "mode": "checkin",
             "guardrail_triggered": True,
             "guardrail_category": guardrail.category,
             "daily_tasks": None,
@@ -300,6 +320,7 @@ async def stream_chat_response(
             "checkin_completed": False,
             "stage": stage or "opening",
             "turn_count": turn_count,
+            "quick_replies": None,
         }
         return
 
@@ -366,6 +387,12 @@ async def stream_chat_response(
     if completed:
         new_stage = "completed"
 
+    quick_replies = _parse_quick_replies(raw)
+    if not quick_replies and not completed:
+        quick_replies = default_quick_replies(effective_stage) or None  # type: ignore[arg-type]
+    if completed:
+        quick_replies = None
+
     logger.info(
         "Check-in turn done | turn=%s stage=%s→%s completed=%s tasks=%s energy=%s",
         effective_turn,
@@ -378,6 +405,7 @@ async def stream_chat_response(
 
     yield {
         "type": "done",
+        "mode": "checkin",
         "guardrail_triggered": False,
         "guardrail_category": None,
         "daily_tasks": daily_tasks,
@@ -385,4 +413,91 @@ async def stream_chat_response(
         "checkin_completed": completed,
         "stage": new_stage,
         "turn_count": effective_turn,
+        "quick_replies": quick_replies,
+    }
+
+
+async def stream_coach_response(
+    message: str,
+    curriculum_context: str = "",
+    *,
+    history: list[dict[str, Any]] | None = None,
+    memory_context: str = "",
+    today_state: Mapping[str, Any] | None = None,
+    today_tasks: Sequence[str] | None = None,
+) -> AsyncIterator[dict]:
+    """
+    Coach mode: real answers after check-in is complete.
+    Does NOT parse [DURUM]/[GOREVLER] — coach must not assign tasks.
+    """
+    guardrail = check_for_risks(message)
+    if guardrail.triggered:
+        logger.warning(
+            "Guardrail tetiklendi (coach) | category=%s", guardrail.category
+        )
+        redirect_text = guardrail.template or ""
+        for word in redirect_text.split():
+            yield {"type": "chunk", "data": word + " "}
+        yield {
+            "type": "done",
+            "mode": "coach",
+            "guardrail_triggered": True,
+            "guardrail_category": guardrail.category,
+            "daily_tasks": None,
+            "state": dict(today_state) if today_state else empty_state(),
+            "checkin_completed": True,
+            "stage": "completed",
+            "turn_count": None,
+            "quick_replies": None,
+        }
+        return
+
+    system_prompt = build_coach_prompt(
+        curriculum_context=curriculum_context or "",
+        memory_context=memory_context or "",
+        today_state=today_state,
+        today_tasks=today_tasks,
+    )
+
+    sanitizer = StreamSanitizer()
+
+    try:
+        async for chunk in stream_llm_response(
+            message,
+            system_prompt=system_prompt,
+            history=history,
+        ):
+            clean = sanitizer.feed(chunk)
+            if clean:
+                yield {"type": "chunk", "data": clean}
+
+        flush = sanitizer.flush()
+        if flush:
+            yield {"type": "chunk", "data": flush}
+
+    except Exception as exc:
+        logger.error("Coach streaming hatası: %s", exc)
+        from backend.domain.errors.app_error import AppError
+
+        err_msg = (
+            exc.message
+            if isinstance(exc, AppError)
+            else "AI servisi şu an yanıt veremiyor."
+        )
+        yield {"type": "error", "message": err_msg}
+        return
+
+    logger.info("Coach turn done | message_len=%s", len(message))
+
+    yield {
+        "type": "done",
+        "mode": "coach",
+        "guardrail_triggered": False,
+        "guardrail_category": None,
+        "daily_tasks": None,
+        "state": dict(today_state) if today_state else empty_state(),
+        "checkin_completed": True,
+        "stage": "completed",
+        "turn_count": None,
+        "quick_replies": None,
     }

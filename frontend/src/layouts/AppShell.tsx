@@ -10,6 +10,7 @@ import {
   Bot,
   Rocket,
   LogOut,
+  BookOpen,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
 import { BottomNav } from '@/components/BottomNav'
@@ -56,6 +57,10 @@ export function AppShell() {
               <NavLink to="/institution/assistant" className={navClass}>
                 <Bot size={20} aria-hidden />
                 Asistan
+              </NavLink>
+              <NavLink to="/institution/curriculum" className={navClass}>
+                <BookOpen size={20} aria-hidden />
+                Müfredat
               </NavLink>
               <NavLink to="/institution/profile" className={navClass}>
                 <User size={20} aria-hidden />

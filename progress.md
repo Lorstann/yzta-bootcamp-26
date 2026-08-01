@@ -149,6 +149,8 @@
 
 **Son güncelleme:** 1 Ağustos 2026
 
+- **Koç modu + kısa check-in + müfredat yükleme:** Check-in bitince aynı sohbette koç modu (`stream_coach_response`, input açık kalır); kelime skalası (Tükendim→Turbo / Hiç yok→Ateşliyim) + `[SECENEKLER]` quick-reply chip'leri; MAX_TURNS 4 / SOFT_CLOSE 3; kurum müfredat upload (PDF/DOCX/TXT/MD + metin yapıştırma, S3 veya `var/uploads` local); Alembic 011; OpenAPI curriculum routes. pytest 129, Vitest 21 yeşil.
+
 - **Check-in sohbet redesign:** LLM'e session history replay (loop kök nedeni); stage makinesi (`opening→explore→focus→closing`, MAX_TURNS=6); inline `[DURUM]` sinyal çıkarımı + `[GOREVLER]`/`[DURUM]` stream sanitizer; Alembic 010 (`energy_level`, `motivation_level`, `workload_level`, `main_blocker`, `stage`, `turn_count`); risk skoruna enerji/motivasyon ortalaması; dost/koç prompt (`build_checkin_prompt`); FE tamamlanma kartı + sinyal göstergesi. pytest 111, Vitest 19 yeşil.
 
 - **Günlük check-in + kurum deneyimi:** Haftalık → günlük geçiş (Alembic 009: `checkin_date`, `daily_tasks`); streak_days; gün pencereli risk; AI Canlı sohbet başlığında; MoodSelector; rol bazlı nav (öğrenci vs instructor/admin); kurum overview/usage/me/settings + metrics-only AI asistan (`POST /institution/assistant/stream`); route contract + role matrix testleri; zombie uvicorn 404 kök nedeni giderildi. pytest 86, Vitest 19 yeşil.

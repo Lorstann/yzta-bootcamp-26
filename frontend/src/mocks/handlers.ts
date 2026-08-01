@@ -458,57 +458,61 @@ export const handlers = [
           )
           controller.enqueue(
             encoder.encode(
-              encodeSse({
-                type: 'done',
-                guardrail_triggered: true,
-                guardrail_category: 'critical',
-                daily_tasks: null,
-                checkin_completed: false,
-                state: null,
-              }),
-            ),
-          )
-          controller.close()
-          return
-        }
-
-        for (const chunk of MOCK_CHAT_CHUNKS) {
-          await delay(60)
-          controller.enqueue(
-            encoder.encode(encodeSse({ type: 'chunk', data: chunk })),
-          )
-        }
-        await delay(40)
-        controller.enqueue(
-          encoder.encode(
             encodeSse({
               type: 'done',
-              guardrail_triggered: false,
-              guardrail_category: null,
-              daily_tasks: [...MOCK_DAILY_TASKS],
-              checkin_completed: true,
-              state: {
-                enerji: 6,
-                motivasyon: 5,
-                engel: null,
-                yuk: 'orta',
-                hazir: true,
-              },
-              stage: 'completed',
-              turn_count: 4,
+              guardrail_triggered: true,
+              guardrail_category: 'critical',
+              daily_tasks: null,
+              checkin_completed: false,
+              state: null,
+              mode: 'checkin',
+              quick_replies: null,
             }),
           ),
         )
         controller.close()
-      },
-    })
+        return
+      }
 
-    return new HttpResponse(stream, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      },
-    })
-  }),
+      for (const chunk of MOCK_CHAT_CHUNKS) {
+        await delay(60)
+        controller.enqueue(
+          encoder.encode(encodeSse({ type: 'chunk', data: chunk })),
+        )
+      }
+      await delay(40)
+      controller.enqueue(
+        encoder.encode(
+          encodeSse({
+            type: 'done',
+            guardrail_triggered: false,
+            guardrail_category: null,
+            daily_tasks: [...MOCK_DAILY_TASKS],
+            checkin_completed: true,
+            state: {
+              enerji: 6,
+              motivasyon: 5,
+              engel: null,
+              yuk: 'orta',
+              hazir: true,
+            },
+            stage: 'completed',
+            turn_count: 3,
+            mode: 'checkin',
+            quick_replies: null,
+          }),
+        ),
+      )
+      controller.close()
+    },
+  })
+
+  return new HttpResponse(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+  })
+}),
 ]

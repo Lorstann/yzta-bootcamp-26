@@ -25,6 +25,10 @@ async def ingest_curriculum_text(
     title: str,
     text: str,
     description: str | None = None,
+    source_type: str = "manual",
+    file_name: str | None = None,
+    file_uri: str | None = None,
+    uploaded_by: uuid.UUID | None = None,
 ) -> Curriculum:
     chunks = chunk_text(text)
     if not chunks:
@@ -36,7 +40,11 @@ async def ingest_curriculum_text(
         tenant_id=tenant_id,
         title=title,
         description=description,
-        source_type="manual",
+        source_type=source_type,
+        file_name=file_name,
+        file_uri=file_uri,
+        chunk_count=len(chunks),
+        uploaded_by=uploaded_by,
     )
     await repo.add_chunks(
         curriculum_id=curriculum.id,

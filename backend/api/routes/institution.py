@@ -4,11 +4,12 @@ backend/api/routes/institution.py
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.controllers import institution_controller
 from backend.api.dependencies.auth import CurrentUser, get_db_for_user, require_roles
+from backend.domain.schemas.curriculum import CurriculumCreateText
 from backend.domain.schemas.institution import (
     InstitutionAssistantRequest,
     TenantSettingsUpdate,
@@ -85,3 +86,39 @@ async def institution_assistant_stream(
     db: AsyncSession = Depends(get_db_for_user),
 ):
     return await institution_controller.assistant_stream(db, user, body)
+
+
+@router.get("/curriculum")
+async def institution_curriculum_list(
+    user: CurrentUser = Depends(_staff),
+    db: AsyncSession = Depends(get_db_for_user),
+):
+    return await institution_controller.list_curriculum(db, user)
+
+
+@router.post("/curriculum")
+async def institution_curriculum_upload(
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    user: CurrentUser = Depends(_admin),
+    db: AsyncSession = Depends(get_db_for_user),
+):
+    return await institution_controller.upload_curriculum(db, user, file, title)
+
+
+@router.post("/curriculum/text")
+async def institution_curriculum_text(
+    body: CurriculumCreateText,
+    user: CurrentUser = Depends(_admin),
+    db: AsyncSession = Depends(get_db_for_user),
+):
+    return await institution_controller.create_curriculum_text(db, user, body)
+
+
+@router.delete("/curriculum/{curriculum_id}")
+async def institution_curriculum_delete(
+    curriculum_id: uuid.UUID,
+    user: CurrentUser = Depends(_admin),
+    db: AsyncSession = Depends(get_db_for_user),
+):
+    return await institution_controller.delete_curriculum(db, user, curriculum_id)

@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     rate_limit_login_per_minute: int = 20
     rate_limit_stream_per_minute: int = 60
 
+    # File storage (curriculum uploads)
+    storage_backend: Literal["local", "s3"] = "local"
+    s3_bucket: str = ""
+    s3_region: str = "eu-central-1"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    local_storage_dir: str = "var/uploads"
+    max_upload_mb: int = 10
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

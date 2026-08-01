@@ -10,7 +10,6 @@ import logging
 import re
 import uuid
 from decimal import Decimal
-from io import BytesIO
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -158,18 +157,9 @@ async def get_profile_stats(
 
 
 def _extract_text_from_pdf(data: bytes) -> str:
-    try:
-        from pypdf import PdfReader
+    from backend.services.document_text import extract_text_from_pdf
 
-        reader = PdfReader(BytesIO(data))
-        parts = []
-        for page in reader.pages:
-            parts.append(page.extract_text() or "")
-        return "\n".join(parts).strip()
-    except Exception as exc:
-        logger.error("PDF parse failed: %s", exc)
-        return ""
-
+    return extract_text_from_pdf(data)
 
 def _heuristic_competencies(text: str) -> dict[str, Any]:
     skills = []

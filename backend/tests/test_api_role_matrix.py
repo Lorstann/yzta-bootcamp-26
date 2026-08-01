@@ -42,6 +42,7 @@ STAFF_GETS = [
     "/api/v1/institution/overview",
     "/api/v1/institution/usage",
     "/api/v1/institution/me",
+    "/api/v1/institution/curriculum",
 ]
 
 

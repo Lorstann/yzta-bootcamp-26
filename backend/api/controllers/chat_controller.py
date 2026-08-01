@@ -1,6 +1,6 @@
 """
 backend/api/controllers/chat_controller.py
-B5/A7: Chat SSE + RAG context inject + check-in persist + history replay.
+B5/A7: Chat SSE + RAG context inject + check-in/coach persist + history replay.
 """
 
 from __future__ import annotations
@@ -19,13 +19,14 @@ from backend.domain.errors.app_error import AppError
 from backend.domain.schemas.chat import ChatRequest
 from backend.repositories.checkin_repo import CheckinRepository
 from backend.repositories.user_repo import StudentProfileRepository
-from backend.services.chat_service import stream_chat_response
+from backend.services.chat_service import stream_chat_response, stream_coach_response
 from backend.services.checkin_flow import (
     HISTORY_WINDOW,
     next_stage,
+    resolve_mode,
     state_from_session,
 )
-from backend.services.checkin_service import persist_turn_and_tasks
+from backend.services.checkin_service import persist_coach_turn, persist_turn_and_tasks
 from backend.services.rag.retrieve import retrieve_curriculum_context
 from backend.services.risk_service import record_high_risk_signal
 from backend.services.task_balancing import limit_tasks
@@ -74,6 +75,11 @@ def _history_window(messages: list | None) -> list[dict]:
     ]
 
 
+def _task_titles(session) -> list[str]:
+    tasks = getattr(session, "daily_tasks", None) or []
+    return [t.title for t in tasks if getattr(t, "title", None)]
+
+
 async def _event_generator(
     request: ChatRequest,
     *,
@@ -88,6 +94,9 @@ async def _event_generator(
     state: dict = {}
     turn_count = 0
     stage = "opening"
+    session_status = "in_progress"
+    today_tasks: list[str] = []
+    mode = "checkin"
 
     async with AsyncSessionLocal() as db:
         try:
@@ -101,8 +110,11 @@ async def _event_generator(
             history = _history_window(session.messages)
             state = dict(state_from_session(session))
             turn_count = int(getattr(session, "turn_count", None) or 0)
+            session_status = getattr(session, "status", None) or "in_progress"
+            today_tasks = _task_titles(session)
             # Always derive from signals so known Qs are never re-asked
             stage = next_stage(state, turn_count)
+            mode = resolve_mode(session_status, stage)
 
             curriculum_context = await retrieve_curriculum_context(
                 db, tenant_id=tenant_id, query=request.message, top_k=4
@@ -133,21 +145,34 @@ async def _event_generator(
                 "Capacity lookup failed | user_id=%s err=%s", user_id, exc
             )
 
-    async for event in stream_chat_response(
-        message=request.message,
-        curriculum_context=combined_context or "",
-        history=history,
-        state=state,
-        turn_count=turn_count,
-        stage=stage,
-        memory_context=memory_context,
-    ):
+    stream = (
+        stream_coach_response(
+            message=request.message,
+            curriculum_context=combined_context or "",
+            history=history,
+            memory_context=memory_context,
+            today_state=state,
+            today_tasks=today_tasks,
+        )
+        if mode == "coach"
+        else stream_chat_response(
+            message=request.message,
+            curriculum_context=combined_context or "",
+            history=history,
+            state=state,
+            turn_count=turn_count,
+            stage=stage,
+            memory_context=memory_context,
+        )
+    )
+
+    async for event in stream:
         if event.get("type") == "chunk":
             full_parts.append(event.get("data", ""))
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         elif event.get("type") == "done":
             tasks = event.get("daily_tasks")
-            if tasks:
+            if tasks and mode == "checkin":
                 energy = (event.get("state") or {}).get("enerji")
                 effective_capacity = capacity
                 if energy is not None and int(energy) <= 4:
@@ -161,8 +186,10 @@ async def _event_generator(
             # Ensure frontend fields are always present
             event = {
                 **event,
+                "mode": event.get("mode") or mode,
                 "checkin_completed": bool(event.get("checkin_completed")),
                 "state": event.get("state") or state,
+                "quick_replies": event.get("quick_replies"),
             }
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -176,6 +203,15 @@ async def _event_generator(
                             tenant_id=tenant_id,
                             user_id=user_id,
                             category=event.get("guardrail_category") or "critical",
+                        )
+                    elif mode == "coach":
+                        await persist_coach_turn(
+                            db,
+                            session_id=request.session_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            user_message=request.message,
+                            assistant_message=assistant_text,
                         )
                     else:
                         await persist_turn_and_tasks(

@@ -22,6 +22,8 @@ export function useChatStream(sessionId: string | null) {
   const [checkinState, setCheckinState] = useState<CheckinStatePayload | null>(
     null,
   )
+  const [quickReplies, setQuickReplies] = useState<string[]>([])
+  const [chatMode, setChatMode] = useState<'checkin' | 'coach'>('checkin')
   const lastUserMessageRef = useRef<string>('')
 
   const sendMessage = useCallback(
@@ -38,6 +40,7 @@ export function useChatStream(sessionId: string | null) {
       setError(null)
       setDailyTasks(null)
       setGuardrail(null)
+      setQuickReplies([])
       setStatus('streaming')
 
       const userMsg: ChatMessage = {
@@ -85,6 +88,16 @@ export function useChatStream(sessionId: string | null) {
             }
             if (event.checkin_completed) {
               setCheckinCompleted(true)
+            }
+            if (event.mode === 'coach' || event.mode === 'checkin') {
+              setChatMode(event.mode)
+            } else if (event.checkin_completed) {
+              setChatMode('coach')
+            }
+            if (event.quick_replies?.length) {
+              setQuickReplies(event.quick_replies)
+            } else {
+              setQuickReplies([])
             }
             if (event.guardrail_triggered) {
               setGuardrail({
@@ -153,6 +166,8 @@ export function useChatStream(sessionId: string | null) {
     guardrail,
     checkinCompleted,
     checkinState,
+    quickReplies,
+    chatMode,
     sendMessage,
     retry,
     hydrateMessages,

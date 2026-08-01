@@ -69,8 +69,7 @@ async def get_or_start_checkin(
             {
                 "role": "assistant",
                 "content": (
-                    "Merhaba! Ben Equa. Bugün nasıl hissediyorsun? "
-                    "Enerjin 1-10 arası nerede?"
+                    "Merhaba, ben Equa. Bugün nasıl bir moddasın?"
                 ),
             }
         ],
@@ -167,6 +166,37 @@ async def persist_turn_and_tasks(
             "Check-in force-completed (max turns) | session_id=%s",
             session_id,
         )
+
+
+async def persist_coach_turn(
+    db: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    user_message: str,
+    assistant_message: str,
+) -> None:
+    """Append coach messages only — do not touch signals, turns, or completion."""
+    repo = CheckinRepository(db)
+    session = await repo.get_with_tasks(session_id)
+    if session is None:
+        raise AppError("Check-in session not found", code="NOT_FOUND", status_code=404)
+    if session.user_id != user_id or session.tenant_id != tenant_id:
+        raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+
+    await repo.append_messages(
+        session,
+        [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": assistant_message},
+        ],
+    )
+    logger.info(
+        "Coach turn persisted | session_id=%s user_id=%s",
+        session_id,
+        user_id,
+    )
 
 
 async def list_task_history(

@@ -1,11 +1,16 @@
-"""Tests for check-in stage machine."""
+"""Tests for check-in stage machine + word scales + chat mode."""
 
 from backend.services.checkin_flow import (
     MAX_TURNS,
+    SOFT_CLOSE_TURN,
+    coerce_scale,
+    default_quick_replies,
     empty_state,
     energy_to_mood,
+    label_for_score,
     merge_state,
     next_stage,
+    resolve_mode,
     should_force_complete,
 )
 
@@ -38,7 +43,8 @@ def test_closing_at_soft_turn():
         "yuk": None,
         "hazir": False,
     }
-    assert next_stage(state, 4) == "closing"
+    assert SOFT_CLOSE_TURN == 3
+    assert next_stage(state, SOFT_CLOSE_TURN) == "closing"
 
 
 def test_closing_when_hazir():
@@ -53,6 +59,7 @@ def test_closing_when_hazir():
 
 
 def test_completed_at_max_turns():
+    assert MAX_TURNS == 4
     assert next_stage(empty_state(), MAX_TURNS) == "completed"
 
 
@@ -88,3 +95,32 @@ def test_energy_to_mood():
     assert energy_to_mood(10) == 5
     assert energy_to_mood(1) == 1
     assert energy_to_mood(None) is None
+
+
+def test_resolve_mode():
+    assert resolve_mode("in_progress", "opening") == "checkin"
+    assert resolve_mode("completed", "completed") == "coach"
+    assert resolve_mode("in_progress", "completed") == "coach"
+
+
+def test_coerce_scale_accepts_labels_and_ints():
+    assert coerce_scale("enerji", "İyiyim") == 8
+    assert coerce_scale("enerji", "iyiyim") == 8
+    assert coerce_scale("motivasyon", "Ateşliyim") == 10
+    assert coerce_scale("enerji", 6) == 6
+    assert coerce_scale("enerji", "99") is None
+    assert coerce_scale("enerji", "bilinmeyen") is None
+
+
+def test_label_for_score():
+    assert label_for_score("enerji", 8) == "İyiyim"
+    assert label_for_score("motivasyon", 2) == "Hiç yok"
+    assert label_for_score("enerji", None) is None
+
+
+def test_default_quick_replies():
+    opening = default_quick_replies("opening")
+    assert "İyiyim" in opening
+    explore = default_quick_replies("explore")
+    assert "Mülakat stresi" in explore
+    assert default_quick_replies("closing") == []

@@ -28,6 +28,12 @@ class Curriculum(Base):
     source_type: Mapped[str] = mapped_column(
         String(50), server_default=text("'manual'"), nullable=False
     )
+    file_name: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    file_uri: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    chunk_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    uploaded_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False

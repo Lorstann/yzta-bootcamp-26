@@ -28,17 +28,52 @@ class CurriculumRepository(BaseRepository[Curriculum]):
         title: str,
         description: str | None = None,
         source_type: str = "manual",
+        file_name: str | None = None,
+        file_uri: str | None = None,
+        chunk_count: int | None = None,
+        uploaded_by: uuid.UUID | None = None,
     ) -> Curriculum:
         row = Curriculum(
             tenant_id=tenant_id,
             title=title,
             description=description,
             source_type=source_type,
+            file_name=file_name,
+            file_uri=file_uri,
+            chunk_count=chunk_count,
+            uploaded_by=uploaded_by,
             is_active=True,
         )
         self.session.add(row)
         await self.session.flush()
         return row
+
+    async def soft_delete(
+        self, curriculum_id: uuid.UUID, *, tenant_id: uuid.UUID
+    ) -> Curriculum | None:
+        result = await self.session.execute(
+            select(Curriculum).where(
+                Curriculum.id == curriculum_id,
+                Curriculum.tenant_id == tenant_id,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        row.is_active = False
+        await self.session.flush()
+        return row
+
+    async def get_for_tenant(
+        self, curriculum_id: uuid.UUID, *, tenant_id: uuid.UUID
+    ) -> Curriculum | None:
+        result = await self.session.execute(
+            select(Curriculum).where(
+                Curriculum.id == curriculum_id,
+                Curriculum.tenant_id == tenant_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def add_chunks(
         self,
