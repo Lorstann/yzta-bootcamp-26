@@ -66,11 +66,27 @@ async def seed(session: AsyncSession) -> None:
     await session.execute(
         text(
             """
-        INSERT INTO student_profiles (user_id, tenant_id, capacity_score, onboarding_completed)
+        INSERT INTO student_profiles (
+            user_id, tenant_id, capacity_score, onboarding_completed,
+            city, district, program_track, interests
+        )
         VALUES
-            (:uid1, :tid1, 75.00, true),
-            (:uid2, :tid2, 60.00, false)
-        ON CONFLICT (user_id) DO NOTHING
+            (
+                :uid1, :tid1, 75.00, true,
+                'İzmir', 'Bornova', 'Veri Bilimi',
+                CAST(:interests1 AS jsonb)
+            ),
+            (
+                :uid2, :tid2, 60.00, false,
+                NULL, NULL, NULL, NULL
+            )
+        ON CONFLICT (user_id) DO UPDATE SET
+            capacity_score = EXCLUDED.capacity_score,
+            onboarding_completed = EXCLUDED.onboarding_completed,
+            city = COALESCE(student_profiles.city, EXCLUDED.city),
+            district = COALESCE(student_profiles.district, EXCLUDED.district),
+            program_track = COALESCE(student_profiles.program_track, EXCLUDED.program_track),
+            interests = COALESCE(student_profiles.interests, EXCLUDED.interests)
     """
         ),
         {
@@ -78,11 +94,17 @@ async def seed(session: AsyncSession) -> None:
             "tid1": str(TENANT_ALPHA_ID),
             "uid2": str(USER_BETA_ID),
             "tid2": str(TENANT_BETA_ID),
+            "interests1": '{"hobbies":["Yürüyüş","Kitap","Kahve"],"recharge":["Doğada olmak"],"notes":[]}',
         },
     )
-    print("  Student profiles eklendi")
+    print("  Student profiles eklendi (Alpha: Izmir/Veri Bilimi + hobiler)")
     await session.commit()
     print("Seed tamamlandi!")
+    print("")
+    print("Giris bilgileri (tenant slug + email + sifre):")
+    print("  Ogrenci Alpha : bootcamp-alpha / test_student_alpha@equa.dev / password123")
+    print("  Ogrenci Beta  : bootcamp-beta  / test_student_beta@equa.dev  / password123")
+    print("  Koordinator   : bootcamp-alpha / coordinator_alpha@equa.dev / password123")
 
 
 async def main() -> None:

@@ -8,6 +8,11 @@ export type CheckinStatePayload = {
   hazir?: boolean
 }
 
+export type DailyTaskPayload = {
+  title: string
+  description?: string
+}
+
 export type ChatSseChunkEvent = {
   type: 'chunk'
   data: string
@@ -17,13 +22,17 @@ export type ChatSseDoneEvent = {
   type: 'done'
   guardrail_triggered: boolean
   guardrail_category: 'critical' | 'dropout' | 'depression' | null
-  daily_tasks: string[] | null
+  /** Prefer object form; legacy string[] still accepted by normalizers. */
+  daily_tasks: Array<DailyTaskPayload | string> | null
   checkin_completed?: boolean
   state?: CheckinStatePayload | null
   stage?: string
   turn_count?: number | null
   mode?: 'checkin' | 'coach'
   quick_replies?: string[] | null
+  /** True when message was refused as out of Equa scope (not a risk signal). */
+  off_topic?: boolean
+  scope_family?: 'leisure' | 'hard' | null
 }
 
 export type ChatSseErrorEvent = {
@@ -35,6 +44,17 @@ export type ChatSseEvent =
   | ChatSseChunkEvent
   | ChatSseDoneEvent
   | ChatSseErrorEvent
+
+export function normalizeDailyTasks(
+  tasks: Array<DailyTaskPayload | string> | null | undefined,
+): DailyTaskPayload[] | null {
+  if (!tasks?.length) return null
+  return tasks.map((t) =>
+    typeof t === 'string'
+      ? { title: t, description: '' }
+      : { title: t.title, description: t.description ?? '' },
+  )
+}
 
 function parseEventPayload(raw: string): ChatSseEvent | null {
   const trimmed = raw.trim()

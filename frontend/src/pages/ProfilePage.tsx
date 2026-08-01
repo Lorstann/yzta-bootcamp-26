@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -24,6 +24,14 @@ type Profile = {
   capacity_score: number | null
   bio: string | null
   competencies: Record<string, unknown> | null
+  city: string | null
+  district: string | null
+  program_track: string | null
+  interests: {
+    hobbies?: string[]
+    recharge?: string[]
+    notes?: string[]
+  } | null
   onboarding_completed: boolean
 }
 
@@ -35,9 +43,45 @@ type ProfileStats = {
   capacity_history: Array<{ score: number; recorded_at: string }>
 }
 
+const TRACK_OPTIONS = [
+  'Veri Bilimi',
+  'Web Geliştirme',
+  'Mobil',
+  'Siber Güvenlik',
+  'UI-UX',
+  'Diğer',
+]
+
+const HOBBY_OPTIONS = [
+  'Yürüyüş',
+  'Spor',
+  'Müzik',
+  'Kitap',
+  'Oyun',
+  'Yemek',
+  'Sinema',
+  'Doğa',
+  'Kahve',
+  'Sosyalleşme',
+]
+
+const RECHARGE_OPTIONS = [
+  'Doğada olmak',
+  'Arkadaşlarla sohbet',
+  'Spor yapmak',
+  'Müzik dinlemek',
+  'Film/dizi',
+  'Uyku/mola',
+  'Yalnız kalmak',
+  'Yürüyüş',
+]
+
 const profileSchema = z.object({
   capacity: z.number().min(0, '0–100 arası').max(100, '0–100 arası'),
   bio: z.string().max(2000).optional(),
+  city: z.string().max(120).optional(),
+  district: z.string().max(120).optional(),
+  program_track: z.string().max(200).optional(),
 })
 
 type ProfileForm = z.infer<typeof profileSchema>
@@ -60,6 +104,9 @@ export function ProfilePage() {
   const [fallbackHint, setFallbackHint] = useState(false)
   const [emailNotif, setEmailNotif] = useState(true)
   const [taskNotif, setTaskNotif] = useState(true)
+  const [hobbies, setHobbies] = useState<string[]>([])
+  const [recharge, setRecharge] = useState<string[]>([])
+  const [customHobby, setCustomHobby] = useState('')
   const user = getStoredUser()
 
   const { data: profile, isLoading, error, refetch } = useQuery({
@@ -76,18 +123,38 @@ export function ProfilePage() {
     values: {
       capacity: profile?.capacity_score ?? 70,
       bio: profile?.bio ?? '',
+      city: profile?.city ?? '',
+      district: profile?.district ?? '',
+      program_track: profile?.program_track ?? '',
     },
   })
+
+  // Sync chip state when profile loads
+  useEffect(() => {
+    if (!profile) return
+    setHobbies(profile.interests?.hobbies ?? [])
+    setRecharge(profile.interests?.recharge ?? [])
+  }, [profile])
 
   const saveMutation = useMutation({
     mutationFn: (values: ProfileForm) =>
       apiPatch<Profile>('/api/v1/profiles/me/onboarding', {
         capacity_score: values.capacity,
         bio: values.bio || null,
+        city: values.city || null,
+        district: values.district || null,
+        program_track: values.program_track || null,
+        interests: {
+          hobbies,
+          recharge,
+          notes: profile?.interests?.notes ?? [],
+        },
         onboarding_completed: true,
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.profile.me(), updated)
+      setHobbies(updated.interests?.hobbies ?? [])
+      setRecharge(updated.interests?.recharge ?? [])
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.stats() })
       const token = getAccessToken()
       const stored = getStoredUser()
@@ -96,6 +163,18 @@ export function ProfilePage() {
       }
     },
   })
+
+  function toggleList(
+    list: string[],
+    setList: (v: string[]) => void,
+    label: string,
+  ) {
+    setList(
+      list.includes(label)
+        ? list.filter((x) => x !== label)
+        : [...list, label],
+    )
+  }
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -304,6 +383,109 @@ export function ProfilePage() {
               {form.formState.errors.capacity.message}
             </p>
           ) : null}
+        </div>
+        <div>
+          <label htmlFor="program_track" className="text-sm font-medium text-equa-ink">
+            Program
+          </label>
+          <select
+            id="program_track"
+            className="mt-1 w-full rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink"
+            {...form.register('program_track')}
+          >
+            <option value="">Seç…</option>
+            {TRACK_OPTIONS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="city" className="text-sm font-medium text-equa-ink">
+              Şehir
+            </label>
+            <Input id="city" className="mt-1" {...form.register('city')} />
+          </div>
+          <div>
+            <label htmlFor="district" className="text-sm font-medium text-equa-ink">
+              İlçe
+            </label>
+            <Input id="district" className="mt-1" {...form.register('district')} />
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-equa-ink">Hobiler</p>
+          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Hobiler">
+            {HOBBY_OPTIONS.map((opt) => {
+              const selected = hobbies.includes(opt)
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggleList(hobbies, setHobbies, opt)}
+                  className={[
+                    'rounded-full px-3 py-1.5 text-xs font-medium',
+                    selected
+                      ? 'bg-equa-primary text-equa-on-primary'
+                      : 'bg-equa-accent-soft text-equa-primary',
+                  ].join(' ')}
+                  aria-pressed={selected}
+                >
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Input
+              value={customHobby}
+              onChange={(e) => setCustomHobby(e.target.value)}
+              placeholder="Özel hobi ekle…"
+              aria-label="Özel hobi"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                const label = customHobby.trim()
+                if (!label) return
+                if (!hobbies.includes(label)) setHobbies([...hobbies, label])
+                setCustomHobby('')
+              }}
+            >
+              Ekle
+            </Button>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-equa-ink">Şarj olduğu şeyler</p>
+          <div
+            className="mt-2 flex flex-wrap gap-2"
+            role="group"
+            aria-label="Şarj aktiviteleri"
+          >
+            {RECHARGE_OPTIONS.map((opt) => {
+              const selected = recharge.includes(opt)
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggleList(recharge, setRecharge, opt)}
+                  className={[
+                    'rounded-full px-3 py-1.5 text-xs font-medium',
+                    selected
+                      ? 'bg-equa-primary text-equa-on-primary'
+                      : 'bg-equa-accent-soft text-equa-primary',
+                  ].join(' ')}
+                  aria-pressed={selected}
+                >
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <div>
           <label htmlFor="bio" className="text-sm font-medium text-equa-ink">

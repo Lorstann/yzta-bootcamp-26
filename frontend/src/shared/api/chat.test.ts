@@ -13,7 +13,9 @@ describe('API client with MSW', () => {
     // Auth header required after P0.1
     localStorage.setItem('equa_access_token', 'mock-token')
     const chunks: string[] = []
-    let doneTasks: string[] | null = null
+    let doneTasks: Array<{ title: string; description?: string } | string> | null =
+      null
+
 
     for await (const event of streamChat({
       session_id: '22222222-2222-2222-2222-222222222222',

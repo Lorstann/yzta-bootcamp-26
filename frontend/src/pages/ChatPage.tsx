@@ -4,12 +4,43 @@ import { Check } from 'lucide-react'
 import { ChatInput } from '@/features/chat/ChatInput'
 import { MessageBubble } from '@/features/chat/MessageBubble'
 import { QuickReplies } from '@/features/chat/QuickReplies'
-import { energyLabel, motivationLabel } from '@/features/chat/scales'
+import {
+  ENERGY_CHOICES,
+  MOTIVATION_CHOICES,
+  energyLabel,
+  motivationLabel,
+} from '@/features/chat/scales'
 import { useChatStream } from '@/features/chat/useChatStream'
 import type { ChatMessage } from '@/features/chat/types'
 import { apiGet } from '@/shared/api/client'
 import { ApiClientError } from '@/shared/api/envelope'
 import { AiChip, Badge, GlassPanel } from '@/components/ui'
+
+const OPENING_CHIPS = ENERGY_CHOICES.map((c) => c.label)
+const EXPLORE_CHIPS = [
+  'Zaman yetmiyor',
+  'Konuyu anlamadım',
+  'Motivasyonum düşük',
+  'Mülakat stresi',
+  'Başka bir şey',
+]
+
+function fallbackChips(session: {
+  status: string
+  energy_level?: number | null
+  motivation_level?: number | null
+  stage?: string
+  quick_replies?: string[] | null
+}): string[] {
+  if (session.status === 'completed') return []
+  if (session.quick_replies?.length) return session.quick_replies
+  if (session.energy_level == null) return [...OPENING_CHIPS]
+  if (session.motivation_level == null) {
+    return MOTIVATION_CHOICES.map((c) => c.label)
+  }
+  if ((session.stage ?? 'opening') === 'explore') return [...EXPLORE_CHIPS]
+  return []
+}
 
 type CheckinSession = {
   id: string
@@ -17,6 +48,8 @@ type CheckinSession = {
   status: string
   energy_level?: number | null
   motivation_level?: number | null
+  stage?: string
+  quick_replies?: string[] | null
   messages: Array<{ role: string; content: string }>
   daily_tasks: Array<{
     id: string
@@ -48,6 +81,8 @@ export function ChatPage() {
     sendMessage,
     retry,
     hydrateMessages,
+    hydrateQuickReplies,
+    hydrateCompleted,
   } = useChatStream(sessionId)
   const listRef = useRef<HTMLDivElement>(null)
   const isStreaming = status === 'streaming'
@@ -76,6 +111,12 @@ export function ChatPage() {
           hydrateMessages(seed)
           hydratedRef.current = true
         }
+        if (session.status === 'completed') {
+          hydrateCompleted(true)
+        } else {
+          const chips = fallbackChips(session)
+          if (chips.length) hydrateQuickReplies(chips)
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -92,7 +133,7 @@ export function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [hydrateMessages])
+  }, [hydrateMessages, hydrateQuickReplies, hydrateCompleted])
 
   useEffect(() => {
     if (!sessionId || !prefill || prefillSent.current || isStreaming) return
@@ -276,9 +317,16 @@ export function ChatPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-equa-muted">
                 Bugünün görevleri
               </p>
-              <ul className="mt-1.5 list-disc space-y-1 pl-4 text-sm text-equa-ink">
+              <ul className="mt-1.5 list-disc space-y-2 pl-4 text-sm text-equa-ink">
                 {dailyTasks.map((task) => (
-                  <li key={task}>{task}</li>
+                  <li key={task.title}>
+                    <span className="font-medium">{task.title}</span>
+                    {task.description ? (
+                      <p className="mt-0.5 text-xs text-equa-muted">
+                        {task.description}
+                      </p>
+                    ) : null}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -290,11 +338,18 @@ export function ChatPage() {
           data-testid="chat-input-slot"
           aria-label="Mesaj yazma alanı"
         >
-          <QuickReplies
-            replies={quickReplies}
-            disabled={isStreaming}
-            onSelect={(label) => void sendMessage(label)}
-          />
+          {quickReplies.length > 0 ? (
+            <div className="mb-3">
+              <p className="mb-2 text-xs font-medium text-equa-muted">
+                Hızlı cevap
+              </p>
+              <QuickReplies
+                replies={quickReplies}
+                disabled={isStreaming}
+                onSelect={(label) => void sendMessage(label)}
+              />
+            </div>
+          ) : null}
           <ChatInput
             disabled={isStreaming}
             onSend={sendMessage}
@@ -316,14 +371,23 @@ export function ChatPage() {
             <ul className="space-y-3" data-testid="daily-tasks-desktop">
               {sideTasks.map((task) => (
                 <li
-                  key={task}
+                  key={task.title}
                   className="rounded-xl border border-equa-line/20 bg-equa-surface p-4"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded border-2 border-equa-primary bg-equa-primary">
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-equa-primary bg-equa-primary">
                       <Check size={12} className="text-equa-on-primary" />
                     </div>
-                    <p className="text-sm font-bold text-equa-ink">{task}</p>
+                    <div>
+                      <p className="text-sm font-bold text-equa-ink">
+                        {task.title}
+                      </p>
+                      {task.description ? (
+                        <p className="mt-1 text-xs text-equa-muted">
+                          {task.description}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </li>
               ))}

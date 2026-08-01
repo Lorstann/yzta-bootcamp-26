@@ -220,6 +220,20 @@ def energy_to_mood(energy: int | None) -> int | None:
     return max(1, min(5, round(energy / 2)))
 
 
+_OPENER_HINTS = (
+    "Doğrudan bir gözlem veya kısa tepkiyle başla — kalıp yasak.",
+    "Kısa bir soruyla başla; giriş cümlesi uzatma.",
+    "Küçük bir kazanımı veya çabayı isimlendirerek başla.",
+    "Pratik bir öneri veya seçenekle başla.",
+)
+
+
+def opener_hint(turn_count: int) -> str:
+    """Rotate opening style so the model does not repeat the same opener."""
+    idx = max(0, int(turn_count)) % len(_OPENER_HINTS)
+    return _OPENER_HINTS[idx]
+
+
 def stage_instruction(stage: Stage) -> str:
     """Single-stage instruction injected into the system prompt."""
     energy_labels = " / ".join(ENERGY_CHOICES.keys())
@@ -243,13 +257,16 @@ def stage_instruction(stage: Stage) -> str:
         return (
             "Engeli biliyorsun — tekrar sorma. Öğrencinin durumuna göre "
             "bugün müfredattan neye odaklanabileceğini sor veya "
-            "kapasitesine uygun bir odak öner. Tek soru."
+            "kapasitesine uygun bir odak öner. Tek soru. "
+            "Burnout riski varsa teknik odak yerine dinlenme/şarj seçeneğini de sun."
         )
     if stage == "closing":
         return (
-            "Görüşmeyi nazikçe kapat. Öğrencinin durumuna uygun en fazla "
-            "3 günlük görev ver. Enerji düşükse (Tükendim/Yorgunum) en fazla "
-            "1 görev ver ve dinlenmeyi meşrulaştır. "
-            "Görevleri MUTLAKA [GOREVLER] bloğunda yaz."
+            "Görüşmeyi nazikçe kapat. Öğrencinin programına, engeline ve "
+            "profiline uygun en fazla 3 GÜNLÜK görev ver. "
+            "Enerji düşükse (Tükendim/Yorgunum) en fazla 1 görev ver ve "
+            "dinlenmeyi meşrulaştır. Burnout orta/yüksekse en az 1 görev "
+            "şarj/hobi/şehir bazlı olsun. "
+            "Görevleri MUTLAKA [GOREVLER] bloğunda 'başlık | detay' formatında yaz."
         )
     return "Check-in tamamlandı. Kısa bir kapanış cümlesi yeter; yeni soru sorma."

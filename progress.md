@@ -149,6 +149,9 @@
 
 **Son güncelleme:** 1 Ağustos 2026
 
+- **Kişiselleştirilmiş burnout koçu:** Onboarding/profil'e şehir, ilçe, program_track, interests (hobi/şarj); Alembic 012; `wellbeing.py` burnout bandı + prompt context; ton yasağı ("Duyduğum şu" vb.) + `opener_hint` rotasyonu; `[PROFIL]` sessiz öğrenme (kullanıcı alanını ezmez); görevler `başlık | detay` + description persist; müfredatsız teknik görev filtresi düzeltildi; jenerik görev yumuşak eleme; SSE daily_tasks obje listesi. pytest 149, Vitest 21 yeşil.
+- **Kapsam kilidi (scope guard):** Hibrit off-topic engeli — hızlı deny/allow desenleri + kararsızlarda LLM IN/OUT sınıflandırıcı (timeout/hata fail-open); leisure→aktivite reframing, hard→kısa red; `off_topic` SSE alanı risk sinyalinden ayrı; check-in turu artmaz; prompt KAPSAM bloğu (aktivite evet / içerik hayır). `SCOPE_CLASSIFIER_ENABLED` ile kapatılabilir. pytest 165, Vitest 21 yeşil.
+
 - **Koç modu + kısa check-in + müfredat yükleme:** Check-in bitince aynı sohbette koç modu (`stream_coach_response`, input açık kalır); kelime skalası (Tükendim→Turbo / Hiç yok→Ateşliyim) + `[SECENEKLER]` quick-reply chip'leri; MAX_TURNS 4 / SOFT_CLOSE 3; kurum müfredat upload (PDF/DOCX/TXT/MD + metin yapıştırma, S3 veya `var/uploads` local); Alembic 011; OpenAPI curriculum routes. pytest 129, Vitest 21 yeşil.
 
 - **Check-in sohbet redesign:** LLM'e session history replay (loop kök nedeni); stage makinesi (`opening→explore→focus→closing`, MAX_TURNS=6); inline `[DURUM]` sinyal çıkarımı + `[GOREVLER]`/`[DURUM]` stream sanitizer; Alembic 010 (`energy_level`, `motivation_level`, `workload_level`, `main_blocker`, `stage`, `turn_count`); risk skoruna enerji/motivasyon ortalaması; dost/koç prompt (`build_checkin_prompt`); FE tamamlanma kartı + sinyal göstergesi. pytest 111, Vitest 19 yeşil.

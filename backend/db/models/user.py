@@ -63,6 +63,10 @@ class StudentProfile(Base):
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     competencies: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    district: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    program_track: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    interests: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), nullable=False
     )

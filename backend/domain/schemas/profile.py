@@ -11,6 +11,14 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class InterestsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hobbies: list[str] = Field(default_factory=list)
+    recharge: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class ProfileOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -19,6 +27,10 @@ class ProfileOut(BaseModel):
     linkedin_url: Optional[str] = None
     bio: Optional[str] = None
     competencies: Optional[dict[str, Any]] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    program_track: Optional[str] = None
+    interests: Optional[dict[str, Any]] = None
     onboarding_completed: bool
 
 
@@ -27,6 +39,10 @@ class OnboardingUpdateRequest(BaseModel):
 
     capacity_score: Decimal = Field(..., ge=0, le=100)
     bio: Optional[str] = Field(default=None, max_length=2000)
+    city: Optional[str] = Field(default=None, max_length=120)
+    district: Optional[str] = Field(default=None, max_length=120)
+    program_track: Optional[str] = Field(default=None, max_length=200)
+    interests: Optional[InterestsPayload] = None
     onboarding_completed: bool = True
 
 

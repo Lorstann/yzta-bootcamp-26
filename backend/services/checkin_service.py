@@ -20,18 +20,36 @@ logger = logging.getLogger(__name__)
 
 
 def serialize_session(session) -> dict[str, Any]:
+    from backend.services.checkin_flow import (
+        default_quick_replies,
+        next_stage,
+        resolve_mode,
+        state_from_session,
+    )
+
+    status = session.status
+    turn_count = int(getattr(session, "turn_count", None) or 0)
+    state = state_from_session(session)
+    stage = next_stage(state, turn_count)
+    mode = resolve_mode(status, stage)
+    quick_replies: list[str] | None = None
+    if mode == "checkin" and status != "completed":
+        replies = default_quick_replies(stage)
+        quick_replies = replies or None
+
     return {
         "id": str(session.id),
         "checkin_date": session.checkin_date.isoformat(),
-        "status": session.status,
+        "status": status,
         "summary": session.summary,
         "mood_score": session.mood_score,
         "energy_level": getattr(session, "energy_level", None),
         "motivation_level": getattr(session, "motivation_level", None),
         "workload_level": getattr(session, "workload_level", None),
         "main_blocker": getattr(session, "main_blocker", None),
-        "stage": getattr(session, "stage", None) or "opening",
-        "turn_count": getattr(session, "turn_count", None) or 0,
+        "stage": getattr(session, "stage", None) or stage or "opening",
+        "turn_count": turn_count,
+        "quick_replies": quick_replies,
         "messages": session.messages or [],
         "daily_tasks": [
             {
@@ -69,7 +87,8 @@ async def get_or_start_checkin(
             {
                 "role": "assistant",
                 "content": (
-                    "Merhaba, ben Equa. Bugün nasıl bir moddasın?"
+                    "Merhaba, ben Equa. Bugün nasıl bir moddasın? "
+                    "Aşağıdaki seçeneklerden birini seçebilirsin."
                 ),
             }
         ],
@@ -148,17 +167,29 @@ async def persist_turn_and_tasks(
         if energy is not None and int(energy) <= 4:
             effective_capacity = min(float(capacity) if capacity is not None else 40.0, 35.0)
         limited = limit_tasks(tasks, effective_capacity)
+        # Normalize to items for replace_tasks
+        items: list[dict] = []
+        for t in limited:
+            if isinstance(t, dict):
+                items.append(
+                    {
+                        "title": str(t.get("title") or "").strip(),
+                        "description": str(t.get("description") or "").strip() or None,
+                    }
+                )
+            else:
+                items.append({"title": str(t).strip(), "description": None})
         await task_repo.replace_tasks(
             checkin_session_id=session_id,
             tenant_id=tenant_id,
             user_id=user_id,
-            titles=limited,
+            items=items,
         )
         await repo.complete(session, summary=assistant_message[:500])
         logger.info(
             "Check-in completed with tasks | session_id=%s count=%s",
             session_id,
-            len(limited),
+            len(items),
         )
     elif checkin_completed:
         await repo.complete(session, summary=assistant_message[:500])

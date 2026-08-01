@@ -1,6 +1,6 @@
 """
 backend/services/profile_service.py
-S08/S09/S10–S12: Profile, onboarding, LinkedIn extract.
+S08/S09/S10–S12: Profile, onboarding, LinkedIn extract, learned profile merge.
 """
 
 from __future__ import annotations
@@ -21,6 +21,39 @@ from backend.repositories.user_repo import StudentProfileRepository, UserReposit
 logger = logging.getLogger(__name__)
 
 
+def _normalize_interests(raw: Any) -> dict[str, list[str]] | None:
+    if raw is None:
+        return None
+    if hasattr(raw, "model_dump"):
+        raw = raw.model_dump()
+    if not isinstance(raw, dict):
+        return None
+
+    def _clean_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            cleaned = item.strip()[:80]
+            if not cleaned:
+                continue
+            key = cleaned.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(cleaned)
+        return out[:20]
+
+    return {
+        "hobbies": _clean_list(raw.get("hobbies")),
+        "recharge": _clean_list(raw.get("recharge")),
+        "notes": _clean_list(raw.get("notes")),
+    }
+
+
 def to_public_profile(profile) -> dict[str, Any]:
     return {
         "user_id": str(profile.user_id),
@@ -30,6 +63,10 @@ def to_public_profile(profile) -> dict[str, Any]:
         "linkedin_url": profile.linkedin_url,
         "bio": profile.bio,
         "competencies": profile.competencies,
+        "city": getattr(profile, "city", None),
+        "district": getattr(profile, "district", None),
+        "program_track": getattr(profile, "program_track", None),
+        "interests": getattr(profile, "interests", None),
         "onboarding_completed": profile.onboarding_completed,
     }
 
@@ -51,9 +88,15 @@ async def update_onboarding(
     capacity_score: Decimal,
     bio: str | None,
     onboarding_completed: bool,
+    city: str | None = None,
+    district: str | None = None,
+    program_track: str | None = None,
+    interests: Any = None,
 ) -> dict[str, Any]:
     repo = StudentProfileRepository(db)
     profile = await repo.get_by_user_id(user_id)
+    interests_payload = _normalize_interests(interests)
+
     if profile is None:
         user_repo = UserRepository(db)
         user = await user_repo.get_by_id(user_id)
@@ -66,6 +109,10 @@ async def update_onboarding(
             tenant_id=user.tenant_id,
             capacity_score=capacity_score,
             bio=bio,
+            city=(city or "").strip() or None,
+            district=(district or "").strip() or None,
+            program_track=(program_track or "").strip() or None,
+            interests=interests_payload,
             onboarding_completed=onboarding_completed,
         )
         await repo.create(profile)
@@ -73,6 +120,14 @@ async def update_onboarding(
         profile.capacity_score = capacity_score
         if bio is not None:
             profile.bio = bio
+        if city is not None:
+            profile.city = city.strip() or None
+        if district is not None:
+            profile.district = district.strip() or None
+        if program_track is not None:
+            profile.program_track = program_track.strip() or None
+        if interests_payload is not None:
+            profile.interests = interests_payload
         profile.onboarding_completed = onboarding_completed
         await db.flush()
 
@@ -86,7 +141,124 @@ async def update_onboarding(
     )
 
     logger.info(
-        "Onboarding updated | user_id=%s capacity=%s", user_id, capacity_score
+        "Onboarding updated | user_id=%s capacity=%s city=%s track=%s",
+        user_id,
+        capacity_score,
+        getattr(profile, "city", None),
+        getattr(profile, "program_track", None),
+    )
+    return to_public_profile(profile)
+
+
+def _merge_string_lists(*lists: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for lst in lists:
+        for item in lst:
+            cleaned = (item or "").strip()[:80]
+            if not cleaned:
+                continue
+            key = cleaned.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(cleaned)
+    return out[:20]
+
+
+async def merge_learned_profile(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    learned: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """
+    Merge AI-detected profile hints without overwriting user-entered fields.
+    Only fills None/empty scalars; appends new hobby/recharge items.
+    """
+    if not learned:
+        return None
+
+    repo = StudentProfileRepository(db)
+    profile = await repo.get_by_user_id(user_id)
+    if profile is None:
+        logger.warning("Learned profile skipped — no profile | user_id=%s", user_id)
+        return None
+
+    changed = False
+
+    sehir = learned.get("sehir") or learned.get("city")
+    if isinstance(sehir, str) and sehir.strip() and not (profile.city or "").strip():
+        profile.city = sehir.strip()[:120]
+        changed = True
+
+    ilce = learned.get("ilce") or learned.get("district")
+    if (
+        isinstance(ilce, str)
+        and ilce.strip()
+        and not (profile.district or "").strip()
+    ):
+        profile.district = ilce.strip()[:120]
+        changed = True
+
+    program = learned.get("program") or learned.get("program_track")
+    if (
+        isinstance(program, str)
+        and program.strip()
+        and not (profile.program_track or "").strip()
+    ):
+        profile.program_track = program.strip()[:200]
+        changed = True
+
+    current = profile.interests if isinstance(profile.interests, dict) else {}
+    hobbies_cur = [
+        str(x).strip()
+        for x in (current.get("hobbies") or [])
+        if isinstance(x, str) and x.strip()
+    ]
+    recharge_cur = [
+        str(x).strip()
+        for x in (current.get("recharge") or [])
+        if isinstance(x, str) and x.strip()
+    ]
+    notes_cur = [
+        str(x).strip()
+        for x in (current.get("notes") or [])
+        if isinstance(x, str) and x.strip()
+    ]
+
+    hobiler = learned.get("hobiler") or learned.get("hobbies") or []
+    sarj = learned.get("sarj") or learned.get("recharge") or []
+    if not isinstance(hobiler, list):
+        hobiler = []
+    if not isinstance(sarj, list):
+        sarj = []
+
+    new_hobbies = _merge_string_lists(
+        hobbies_cur, [str(x) for x in hobiler if isinstance(x, str)]
+    )
+    new_recharge = _merge_string_lists(
+        recharge_cur, [str(x) for x in sarj if isinstance(x, str)]
+    )
+
+    if new_hobbies != hobbies_cur or new_recharge != recharge_cur:
+        profile.interests = {
+            "hobbies": new_hobbies,
+            "recharge": new_recharge,
+            "notes": notes_cur,
+        }
+        changed = True
+
+    if not changed:
+        return to_public_profile(profile)
+
+    await db.flush()
+    logger.info(
+        "Learned profile merged | user_id=%s city=%s track=%s hobbies=%s",
+        user_id,
+        profile.city,
+        profile.program_track,
+        len(new_hobbies),
     )
     return to_public_profile(profile)
 
@@ -160,6 +332,7 @@ def _extract_text_from_pdf(data: bytes) -> str:
     from backend.services.document_text import extract_text_from_pdf
 
     return extract_text_from_pdf(data)
+
 
 def _heuristic_competencies(text: str) -> dict[str, Any]:
     skills = []

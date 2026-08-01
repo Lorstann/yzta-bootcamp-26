@@ -68,6 +68,13 @@ export const handlers = [
         motivation_level: null,
         stage: 'opening',
         turn_count: 0,
+        quick_replies: [
+          'Tükendim',
+          'Yorgunum',
+          'İdare eder',
+          'İyiyim',
+          'Turbo moddayım',
+        ],
         messages: [],
         daily_tasks: [],
       },
@@ -161,6 +168,14 @@ export const handlers = [
         linkedin_url: null,
         bio: null,
         competencies: null,
+        city: 'İzmir',
+        district: 'Bornova',
+        program_track: 'Veri Bilimi',
+        interests: {
+          hobbies: ['Yürüyüş', 'Kitap'],
+          recharge: ['Doğada olmak'],
+          notes: [],
+        },
         onboarding_completed: true,
       },
       error: null,
@@ -196,6 +211,10 @@ export const handlers = [
         linkedin_url: null,
         bio: body.bio ?? null,
         competencies: null,
+        city: body.city ?? null,
+        district: body.district ?? null,
+        program_track: body.program_track ?? null,
+        interests: body.interests ?? { hobbies: [], recharge: [], notes: [] },
         onboarding_completed: body.onboarding_completed ?? true,
       },
       error: null,
@@ -443,6 +462,11 @@ export const handlers = [
     }
 
     const isGuardrail = body.message?.toLowerCase().includes('intihar')
+    const lowered = body.message?.toLowerCase() ?? ''
+    const isOffTopic =
+      lowered.includes('makarna tarifi') ||
+      lowered.includes('dünya savaşı') ||
+      lowered.includes('dunya savasi')
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -467,6 +491,42 @@ export const handlers = [
               state: null,
               mode: 'checkin',
               quick_replies: null,
+              off_topic: false,
+              scope_family: null,
+            }),
+          ),
+        )
+        controller.close()
+        return
+      }
+
+      if (isOffTopic) {
+        const leisure = lowered.includes('tarif')
+        controller.enqueue(
+          encoder.encode(
+            encodeSse({
+              type: 'chunk',
+              data: leisure
+                ? 'Tarif vermiyorum ama bunu bugünün molası olarak planlayabiliriz. '
+                : 'Bu Equa kapsamı dışında — eğitim veya dinlenme planına dönelim. ',
+            }),
+          ),
+        )
+        controller.enqueue(
+          encoder.encode(
+            encodeSse({
+              type: 'done',
+              guardrail_triggered: false,
+              guardrail_category: null,
+              daily_tasks: null,
+              checkin_completed: false,
+              state: null,
+              stage: 'opening',
+              turn_count: 0,
+              mode: 'checkin',
+              quick_replies: ['Tükendim', 'Yorgunum', 'İdare eder', 'İyiyim', 'Turbo'],
+              off_topic: true,
+              scope_family: leisure ? 'leisure' : 'hard',
             }),
           ),
         )
@@ -500,6 +560,8 @@ export const handlers = [
             turn_count: 3,
             mode: 'checkin',
             quick_replies: null,
+            off_topic: false,
+            scope_family: null,
           }),
         ),
       )

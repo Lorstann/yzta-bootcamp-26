@@ -8,9 +8,18 @@ export const MOCK_CHAT_CHUNKS = [
 ] as const
 
 export const MOCK_DAILY_TASKS = [
-  'Müfredattan 1 modül tekrarı yap',
-  'Kısa bir LinkedIn profil gözden geçirmesi',
-  'Mentöre 1 soru hazırla',
+  {
+    title: 'Pandas groupby tekrarı',
+    description: 'Tek dataset üzerinde 3 agregasyon yaz, 30 dk, notebook’a kaydet',
+  },
+  {
+    title: 'Bornova’da kısa yürüyüş',
+    description: '20–30 dk açık havada yürü, telefonu sessize al',
+  },
+  {
+    title: 'SQL JOIN örneği',
+    description: 'İki tabloyu LEFT JOIN ile birleştirip 5 satır sonuç al',
+  },
 ] as const
 
 export function encodeSse(payload: unknown): string {

@@ -271,7 +271,8 @@ class DailyTaskRepository(BaseRepository[DailyTask]):
         checkin_session_id: uuid.UUID,
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
-        titles: list[str],
+        titles: list[str] | None = None,
+        items: list[dict] | None = None,
     ) -> list[DailyTask]:
         existing = await self.session.execute(
             select(DailyTask).where(
@@ -281,13 +282,31 @@ class DailyTaskRepository(BaseRepository[DailyTask]):
         for row in existing.scalars().all():
             await self.session.delete(row)
 
+        rows: list[dict] = []
+        if items:
+            for item in items[:3]:
+                if isinstance(item, dict):
+                    title = str(item.get("title") or "").strip()
+                    desc = str(item.get("description") or "").strip() or None
+                else:
+                    title = str(item).strip()
+                    desc = None
+                if title:
+                    rows.append({"title": title, "description": desc})
+        elif titles:
+            for title in titles[:3]:
+                cleaned = (title or "").strip()
+                if cleaned:
+                    rows.append({"title": cleaned, "description": None})
+
         created: list[DailyTask] = []
-        for title in titles[:3]:
+        for row in rows:
             task = DailyTask(
                 checkin_session_id=checkin_session_id,
                 tenant_id=tenant_id,
                 user_id=user_id,
-                title=title.strip(),
+                title=row["title"],
+                description=row["description"],
                 is_completed=False,
                 due_date=day_for(),
             )

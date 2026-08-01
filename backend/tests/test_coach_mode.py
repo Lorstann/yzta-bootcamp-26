@@ -18,6 +18,8 @@ def test_build_coach_prompt_forbids_task_blocks():
     assert "ÜRETME" in prompt or "ATAMA" in prompt
     assert "GERÇEK cevap" in prompt or "gerçek" in prompt.lower()
     assert "Mentöre soru yaz" in prompt
+    assert "KAPSAM" in prompt
+    assert "kaçınma" not in prompt.casefold()
 
 
 def test_build_coach_prompt_no_curriculum_note():

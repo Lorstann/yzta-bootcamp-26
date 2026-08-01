@@ -3,12 +3,49 @@ import { useNavigate } from 'react-router-dom'
 import { apiPatch } from '@/shared/api/client'
 import { getStoredUser, setAuth, getAccessToken } from '@/shared/auth/storage'
 
+type StepKind = 'text' | 'capacity' | 'chips' | 'city' | 'track'
+
 type Step = {
   id: string
   question: string
-  kind: 'text' | 'capacity'
+  kind: StepKind
   skippable: boolean
+  options?: string[]
+  multi?: boolean
 }
+
+const TRACK_OPTIONS = [
+  'Veri Bilimi',
+  'Web Geliştirme',
+  'Mobil',
+  'Siber Güvenlik',
+  'UI-UX',
+  'Diğer',
+]
+
+const HOBBY_OPTIONS = [
+  'Yürüyüş',
+  'Spor',
+  'Müzik',
+  'Kitap',
+  'Oyun',
+  'Yemek',
+  'Sinema',
+  'Doğa',
+  'Kahve',
+  'Sosyalleşme',
+]
+
+const RECHARGE_OPTIONS = [
+  'Doğada olmak',
+  'Arkadaşlarla sohbet',
+  'Spor yapmak',
+  'Müzik dinlemek',
+  'Film/dizi',
+  'Uyku/mola',
+  'Yalnız kalmak',
+  'Yürüyüş',
+]
 
 const STEPS: Step[] = [
   {
@@ -16,6 +53,35 @@ const STEPS: Step[] = [
     question: 'Bootcamp’ten sonra neyi başarmak istiyorsun? (kısaca)',
     kind: 'text',
     skippable: true,
+  },
+  {
+    id: 'track',
+    question: 'Hangi programdasın?',
+    kind: 'track',
+    skippable: true,
+    options: TRACK_OPTIONS,
+  },
+  {
+    id: 'city',
+    question: 'Hangi şehir ve ilçedesin? (etkinlik ve mekan önerileri için)',
+    kind: 'city',
+    skippable: true,
+  },
+  {
+    id: 'hobbies',
+    question: 'Neler yapmayı seversin? (birden fazla seçebilirsin)',
+    kind: 'chips',
+    skippable: true,
+    options: HOBBY_OPTIONS,
+    multi: true,
+  },
+  {
+    id: 'recharge',
+    question: 'Kafanı en çok ne dağıtıyor?',
+    kind: 'chips',
+    skippable: true,
+    options: RECHARGE_OPTIONS,
+    multi: true,
   },
   {
     id: 'pace',
@@ -43,10 +109,16 @@ const STEPS: Step[] = [
   },
 ]
 
+type CityAnswer = { city: string; district: string }
+
 export function OnboardingPage() {
   const navigate = useNavigate()
   const [stepIndex, setStepIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [chipAnswers, setChipAnswers] = useState<Record<string, string[]>>({})
+  const [cityAnswer, setCityAnswer] = useState<CityAnswer>({ city: '', district: '' })
+  const [trackOther, setTrackOther] = useState('')
+  const [customChip, setCustomChip] = useState('')
   const [input, setInput] = useState('')
   const [capacity, setCapacity] = useState(70)
   const [error, setError] = useState<string | null>(null)
@@ -58,13 +130,43 @@ export function OnboardingPage() {
     [stepIndex],
   )
 
-  async function finish(finalCapacity: number, bioParts: string[]) {
+  const selectedChips = chipAnswers[step.id] ?? []
+
+  function toggleChip(label: string) {
+    setChipAnswers((prev) => {
+      const current = prev[step.id] ?? []
+      const next = current.includes(label)
+        ? current.filter((x) => x !== label)
+        : [...current, label]
+      return { ...prev, [step.id]: next }
+    })
+  }
+
+  async function finish(
+    finalCapacity: number,
+    bioParts: string[],
+    nextAnswers: Record<string, string>,
+    nextChips: Record<string, string[]>,
+    nextCity: CityAnswer,
+  ) {
     setSaving(true)
     setError(null)
     try {
+      const trackRaw = nextAnswers.track || ''
+      const program_track =
+        trackRaw === 'Diğer' ? trackOther.trim() || null : trackRaw || null
+
       await apiPatch('/api/v1/profiles/me/onboarding', {
         capacity_score: finalCapacity,
         bio: bioParts.filter(Boolean).join(' · ') || null,
+        city: nextCity.city.trim() || null,
+        district: nextCity.district.trim() || null,
+        program_track,
+        interests: {
+          hobbies: nextChips.hobbies ?? [],
+          recharge: nextChips.recharge ?? [],
+          notes: [],
+        },
         onboarding_completed: true,
       })
       const token = getAccessToken()
@@ -87,6 +189,7 @@ export function OnboardingPage() {
     }
     setAnswers(nextAnswers)
     setInput('')
+    setCustomChip('')
 
     if (stepIndex >= STEPS.length - 1) {
       const bioParts = STEPS.filter((s) => s.kind === 'text')
@@ -96,7 +199,7 @@ export function OnboardingPage() {
         step.kind === 'capacity' && !skipped
           ? Number(value) || capacity
           : Number(nextAnswers.capacity) || capacity
-      await finish(cap, bioParts)
+      await finish(cap, bioParts, nextAnswers, chipAnswers, cityAnswer)
       return
     }
     setStepIndex((i) => i + 1)
@@ -106,6 +209,30 @@ export function OnboardingPage() {
     e.preventDefault()
     if (step.kind === 'capacity') {
       void advance(String(capacity))
+      return
+    }
+    if (step.kind === 'chips') {
+      void advance((chipAnswers[step.id] ?? []).join(', ') || '')
+      return
+    }
+    if (step.kind === 'city') {
+      void advance(
+        [cityAnswer.city, cityAnswer.district].filter(Boolean).join(' / '),
+      )
+      return
+    }
+    if (step.kind === 'track') {
+      const selected = answers.track || input
+      if (!selected && !step.skippable) {
+        setError('Bir program seç veya yaz.')
+        return
+      }
+      if (selected === 'Diğer' && !trackOther.trim() && !step.skippable) {
+        setError('Programını yaz.')
+        return
+      }
+      setError(null)
+      void advance(selected || '')
       return
     }
     if (!input.trim() && !step.skippable) {
@@ -164,7 +291,9 @@ export function OnboardingPage() {
               className="mt-2 w-full accent-equa-primary"
             />
           </div>
-        ) : (
+        ) : null}
+
+        {step.kind === 'text' ? (
           <div>
             <label htmlFor="onboarding-answer" className="sr-only">
               Yanıtın
@@ -178,7 +307,121 @@ export function OnboardingPage() {
               placeholder="Kısa bir yanıt yaz…"
             />
           </div>
-        )}
+        ) : null}
+
+        {step.kind === 'city' ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="city" className="text-sm font-medium text-equa-ink">
+                Şehir
+              </label>
+              <input
+                id="city"
+                value={cityAnswer.city}
+                onChange={(e) =>
+                  setCityAnswer((c) => ({ ...c, city: e.target.value }))
+                }
+                className="mt-1 w-full rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink"
+                placeholder="örn. İzmir"
+              />
+            </div>
+            <div>
+              <label htmlFor="district" className="text-sm font-medium text-equa-ink">
+                İlçe
+              </label>
+              <input
+                id="district"
+                value={cityAnswer.district}
+                onChange={(e) =>
+                  setCityAnswer((c) => ({ ...c, district: e.target.value }))
+                }
+                className="mt-1 w-full rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink"
+                placeholder="örn. Bornova"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {step.kind === 'track' ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Program">
+              {(step.options ?? []).map((opt) => {
+                const selected = answers.track === opt
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setAnswers((a) => ({ ...a, track: opt }))}
+                    className={[
+                      'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                      selected
+                        ? 'bg-equa-primary text-equa-on-primary'
+                        : 'bg-equa-accent-soft text-equa-primary',
+                    ].join(' ')}
+                  >
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+            {answers.track === 'Diğer' ? (
+              <input
+                value={trackOther}
+                onChange={(e) => setTrackOther(e.target.value)}
+                className="w-full rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink"
+                placeholder="Program adını yaz…"
+                aria-label="Diğer program"
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {step.kind === 'chips' ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={step.question}>
+              {(step.options ?? []).map((opt) => {
+                const selected = selectedChips.includes(opt)
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleChip(opt)}
+                    className={[
+                      'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                      selected
+                        ? 'bg-equa-primary text-equa-on-primary'
+                        : 'bg-equa-accent-soft text-equa-primary',
+                    ].join(' ')}
+                    aria-pressed={selected}
+                  >
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={customChip}
+                onChange={(e) => setCustomChip(e.target.value)}
+                className="flex-1 rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink"
+                placeholder="Başka bir şey ekle…"
+                aria-label="Özel seçenek"
+              />
+              <button
+                type="button"
+                className="rounded-xl border border-equa-line/40 px-3 py-2 text-sm text-equa-ink"
+                onClick={() => {
+                  const label = customChip.trim()
+                  if (!label) return
+                  toggleChip(label)
+                  setCustomChip('')
+                }}
+              >
+                Ekle
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <p className="text-sm text-red-300" role="alert">

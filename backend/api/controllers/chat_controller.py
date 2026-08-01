@@ -27,9 +27,11 @@ from backend.services.checkin_flow import (
     state_from_session,
 )
 from backend.services.checkin_service import persist_coach_turn, persist_turn_and_tasks
+from backend.services.profile_service import merge_learned_profile, to_public_profile
 from backend.services.rag.retrieve import retrieve_curriculum_context
 from backend.services.risk_service import record_high_risk_signal
 from backend.services.task_balancing import limit_tasks
+from backend.services.wellbeing import build_wellbeing_context
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,18 @@ def _task_titles(session) -> list[str]:
     return [t.title for t in tasks if getattr(t, "title", None)]
 
 
+def _interests_list(profile: dict | None, key: str) -> list[str]:
+    if not profile:
+        return []
+    interests = profile.get("interests")
+    if not isinstance(interests, dict):
+        return []
+    raw = interests.get(key) or []
+    if not isinstance(raw, list):
+        return []
+    return [str(x).strip() for x in raw if isinstance(x, str) and x.strip()]
+
+
 async def _event_generator(
     request: ChatRequest,
     *,
@@ -97,6 +111,8 @@ async def _event_generator(
     session_status = "in_progress"
     today_tasks: list[str] = []
     mode = "checkin"
+    profile_dict: dict | None = None
+    wellbeing_context = ""
 
     async with AsyncSessionLocal() as db:
         try:
@@ -137,13 +153,20 @@ async def _event_generator(
         try:
             await apply_tenant_context(db, tenant_id)
             profile = await StudentProfileRepository(db).get_by_user_id(user_id)
-            capacity = profile.capacity_score if profile else None
+            if profile is not None:
+                profile_dict = to_public_profile(profile)
+                capacity = profile.capacity_score
+            wellbeing_context = build_wellbeing_context(profile_dict, state)
             await db.commit()
         except Exception as exc:
             await db.rollback()
             logger.error(
-                "Capacity lookup failed | user_id=%s err=%s", user_id, exc
+                "Profile/wellbeing lookup failed | user_id=%s err=%s", user_id, exc
             )
+
+    hobbies = _interests_list(profile_dict, "hobbies")
+    city = (profile_dict or {}).get("city") if profile_dict else None
+    track = (profile_dict or {}).get("program_track") if profile_dict else None
 
     stream = (
         stream_coach_response(
@@ -151,8 +174,10 @@ async def _event_generator(
             curriculum_context=combined_context or "",
             history=history,
             memory_context=memory_context,
+            wellbeing_context=wellbeing_context,
             today_state=state,
             today_tasks=today_tasks,
+            program_track=track,
         )
         if mode == "coach"
         else stream_chat_response(
@@ -163,6 +188,10 @@ async def _event_generator(
             turn_count=turn_count,
             stage=stage,
             memory_context=memory_context,
+            wellbeing_context=wellbeing_context,
+            program_track=track,
+            hobbies=hobbies,
+            city=city,
         )
     )
 
@@ -183,7 +212,8 @@ async def _event_generator(
                     **event,
                     "daily_tasks": limit_tasks(tasks, effective_capacity),
                 }
-            # Ensure frontend fields are always present
+            # Strip learned_profile from SSE (internal only)
+            learned = event.pop("learned_profile", None)
             event = {
                 **event,
                 "mode": event.get("mode") or mode,
@@ -203,6 +233,23 @@ async def _event_generator(
                             tenant_id=tenant_id,
                             user_id=user_id,
                             category=event.get("guardrail_category") or "critical",
+                        )
+                    elif event.get("off_topic"):
+                        # Transcript only — do NOT advance check-in turn/signals
+                        # and do NOT record a high-risk signal.
+                        await persist_coach_turn(
+                            db,
+                            session_id=request.session_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            user_message=request.message,
+                            assistant_message=assistant_text,
+                        )
+                        logger.info(
+                            "Off-topic turn persisted | session_id=%s family=%s mode=%s",
+                            request.session_id,
+                            event.get("scope_family"),
+                            mode,
                         )
                     elif mode == "coach":
                         await persist_coach_turn(
@@ -226,6 +273,10 @@ async def _event_generator(
                             stage=event.get("stage"),
                             turn_count=event.get("turn_count"),
                             checkin_completed=bool(event.get("checkin_completed")),
+                        )
+                    if learned:
+                        await merge_learned_profile(
+                            db, user_id=user_id, learned=learned
                         )
                     await db.commit()
                 except Exception as exc:

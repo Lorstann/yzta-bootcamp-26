@@ -1279,8 +1279,40 @@ components:
         competencies:
           nullable: true
           type: object
+        city:
+          nullable: true
+          type: string
+          maxLength: 120
+        district:
+          nullable: true
+          type: string
+          maxLength: 120
+        program_track:
+          nullable: true
+          type: string
+          maxLength: 200
+        interests:
+          nullable: true
+          $ref: '#/components/schemas/InterestsPayload'
         onboarding_completed:
           type: boolean
+
+    InterestsPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        hobbies:
+          type: array
+          items:
+            type: string
+        recharge:
+          type: array
+          items:
+            type: string
+        notes:
+          type: array
+          items:
+            type: string
 
     ProfileResponse:
       allOf:
@@ -1303,6 +1335,21 @@ components:
           nullable: true
           type: string
           maxLength: 2000
+        city:
+          nullable: true
+          type: string
+          maxLength: 120
+        district:
+          nullable: true
+          type: string
+          maxLength: 120
+        program_track:
+          nullable: true
+          type: string
+          maxLength: 200
+        interests:
+          nullable: true
+          $ref: '#/components/schemas/InterestsPayload'
         onboarding_completed:
           type: boolean
           default: true

@@ -32,6 +32,10 @@ async def update_onboarding(
         capacity_score=body.capacity_score,
         bio=body.bio,
         onboarding_completed=body.onboarding_completed,
+        city=body.city,
+        district=body.district,
+        program_track=body.program_track,
+        interests=body.interests,
     )
     return ok(data=data)
 

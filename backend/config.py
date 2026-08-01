@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     llm_provider: LlmProvider = "gemini"
     llm_api_key: str = ""
     llm_model: str = "gemini-3.5-flash-lite"
+    # Scope classifier for ambiguous off-topic messages (fail-open when false)
+    scope_classifier_enabled: bool = True
 
     @field_validator("llm_provider", mode="before")
     @classmethod
