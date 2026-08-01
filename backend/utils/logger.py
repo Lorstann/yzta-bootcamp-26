@@ -9,8 +9,40 @@ Kullanım:
 """
 
 import logging
+import re
 import sys
+
 from backend.config import settings
+
+_REDACT_KEYS = (
+    "password",
+    "password_hash",
+    "passwordHash",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "jwt",
+    "api_key",
+    "llm_api_key",
+)
+
+# Only redact key=value / key: value pairs in already-formatted text.
+_REDACT_RE = re.compile(
+    r"(?i)\b(authorization|password(?:_hash)?|passwordHash|access_token|"
+    r"refresh_token|token|jwt|llm_api_key|api_key)\b\s*[:=]\s*\S+"
+)
+
+
+class RedactingFormatter(logging.Formatter):
+    """Format first, then redact — never mutate %-format placeholders."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        for key in _REDACT_KEYS:
+            if hasattr(record, key):
+                setattr(record, key, "[REDACTED]")
+        formatted = super().format(record)
+        return _REDACT_RE.sub(r"\1=[REDACTED]", formatted)
 
 
 def setup_logging() -> None:
@@ -18,25 +50,23 @@ def setup_logging() -> None:
 
     log_level = getattr(logging, settings.log_level.upper(), logging.DEBUG)
 
-    # Format: zaman | seviye | modül | mesaj
-    formatter = logging.Formatter(
+    formatter = RedactingFormatter(
         fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Console handler (stdout)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
-    # Root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Daha önce handler eklendiyse tekrar ekleme
     if not root_logger.handlers:
         root_logger.addHandler(handler)
+    else:
+        for existing in root_logger.handlers:
+            existing.setFormatter(formatter)
 
-    # Gürültülü kütüphaneleri sustur
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(
         logging.INFO if settings.log_level == "debug" else logging.WARNING

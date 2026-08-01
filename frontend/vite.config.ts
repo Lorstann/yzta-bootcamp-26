@@ -19,8 +19,8 @@ export default defineConfig({
         lang: 'tr',
         start_url: '/',
         display: 'standalone',
-        background_color: '#0f766e',
-        theme_color: '#0f766e',
+        background_color: '#141218',
+        theme_color: '#141218',
         icons: [
           {
             src: 'pwa-192.png',
@@ -71,6 +71,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
     env: {
       VITE_API_BASE_URL: 'http://localhost:8000',
     },

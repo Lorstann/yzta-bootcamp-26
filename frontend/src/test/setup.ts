@@ -8,6 +8,7 @@ beforeAll(() => {
 
 afterEach(() => {
   server.resetHandlers()
+  localStorage.clear()
 })
 
 afterAll(() => {

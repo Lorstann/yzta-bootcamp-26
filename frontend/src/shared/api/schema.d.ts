@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a student account */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/stream": {
         parameters: {
             query?: never;
@@ -33,9 +67,214 @@ export interface paths {
         /**
          * Stream a chat reply as Server-Sent Events
          * @description Accepts a student message and streams SSE events.
+         *     Requires Bearer JWT; tenant is taken from the token.
          *     Each `data:` line is a JSON object with `type` of `chunk`, `done`, or `error`.
          */
         post: operations["streamChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start or resume the current weekly check-in */
+        post: operations["startCheckin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkins/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get or start the current weekly check-in */
+        get: operations["getCurrentCheckin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkins/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List past check-in sessions */
+        get: operations["listCheckinHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkins/current/mood": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set mood score for the current check-in (1-5) */
+        patch: operations["updateCurrentMood"];
+        trace?: never;
+    };
+    "/api/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all weekly tasks for the current student */
+        get: operations["listTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark a weekly task complete/incomplete */
+        patch: operations["patchTask"];
+        trace?: never;
+    };
+    "/api/v1/profiles/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current student profile */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/me/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dashboard stats — check-in count, streak, capacity history */
+        get: operations["getMyProfileStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/me/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update onboarding / capacity */
+        patch: operations["updateOnboarding"];
+        trace?: never;
+    };
+    "/api/v1/profiles/me/linkedin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload LinkedIn PDF for competency extraction */
+        post: operations["uploadLinkedin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/institution/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List students with risk scores (staff only) */
+        get: operations["listInstitutionStudents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/institution/roi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ROI metrics for the tenant (staff only) */
+        get: operations["getInstitutionRoi"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -78,15 +317,46 @@ export interface components {
         HealthResponse: components["schemas"]["SuccessEnvelope"] & {
             data?: components["schemas"]["HealthData"];
         };
+        RegisterRequest: {
+            tenant_slug: string;
+            /** Format: email */
+            email: string;
+            password: string;
+            full_name: string;
+            /**
+             * @default student
+             * @enum {string}
+             */
+            role: "student";
+        };
+        LoginRequest: {
+            tenant_slug: string;
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        PublicUser: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenant_id: string;
+            email: string;
+            full_name?: string | null;
+            role: string;
+        };
+        AuthTokenData: {
+            access_token: string;
+            /** @default bearer */
+            token_type: string;
+            user: components["schemas"]["PublicUser"];
+        };
+        AuthResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["AuthTokenData"];
+        };
         ChatRequest: {
             /**
              * Format: uuid
-             * @description Tenant UUID (temporary until JWT claims; S18).
-             */
-            tenant_id: string;
-            /**
-             * Format: uuid
-             * @description Check-in session UUID.
+             * @description Check-in session UUID owned by the authenticated student.
              */
             session_id: string;
             /** @description Student message text. */
@@ -120,6 +390,143 @@ export interface components {
             message: string;
         };
         ChatSseEvent: components["schemas"]["ChatSseChunkEvent"] | components["schemas"]["ChatSseDoneEvent"] | components["schemas"]["ChatSseErrorEvent"];
+        WeeklyTaskOut: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            description?: string | null;
+            is_completed: boolean;
+            /** Format: date-time */
+            completed_at?: string | null;
+            /**
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "suspended";
+            /** Format: date */
+            due_date?: string | null;
+            /** Format: date-time */
+            created_at?: string | null;
+            /** Format: date */
+            week_start?: string | null;
+            /** Format: uuid */
+            checkin_session_id?: string | null;
+        };
+        CheckinSessionOut: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            week_start: string;
+            status: string;
+            summary?: string | null;
+            mood_score?: number | null;
+            messages: Record<string, never>[];
+            weekly_tasks: components["schemas"]["WeeklyTaskOut"][];
+        };
+        CheckinSessionResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["CheckinSessionOut"];
+        };
+        MoodUpdateRequest: {
+            mood_score: number;
+        };
+        CheckinHistoryItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            week_start: string;
+            status: string;
+            summary?: string | null;
+            mood_score?: number | null;
+            task_count: number;
+            completed_task_count: number;
+        };
+        CheckinHistoryResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: {
+                sessions?: components["schemas"]["CheckinHistoryItem"][];
+            };
+        };
+        TaskListResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: {
+                tasks?: components["schemas"]["WeeklyTaskOut"][];
+            };
+        };
+        TaskCompleteRequest: {
+            /** @default true */
+            is_completed: boolean;
+        };
+        TaskPatchResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: {
+                [key: string]: unknown;
+            };
+        };
+        ProfileStatsOut: {
+            total_checkins: number;
+            streak_weeks: number;
+            completed_tasks: number;
+            open_tasks?: number;
+            capacity_history?: {
+                score?: number;
+                /** Format: date-time */
+                recorded_at?: string;
+            }[];
+        };
+        ProfileStatsResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["ProfileStatsOut"];
+        };
+        ProfileOut: {
+            /** Format: uuid */
+            user_id: string;
+            capacity_score?: number | null;
+            linkedin_url?: string | null;
+            bio?: string | null;
+            competencies?: Record<string, never> | null;
+            onboarding_completed: boolean;
+        };
+        ProfileResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["ProfileOut"];
+        };
+        OnboardingUpdateRequest: {
+            capacity_score: number;
+            bio?: string | null;
+            /** @default true */
+            onboarding_completed: boolean;
+        };
+        CompetencyExtractOut: {
+            competencies: Record<string, never>;
+            source: string;
+            fallback_required: boolean;
+        };
+        CompetencyExtractResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["CompetencyExtractOut"];
+        };
+        StudentRiskRow: {
+            /** Format: uuid */
+            user_id: string;
+            full_name?: string | null;
+            email: string;
+            /** @enum {string} */
+            risk_level: "green" | "yellow" | "red";
+            rationale?: string | null;
+            metrics?: Record<string, never> | null;
+            capacity_score?: number | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        InstitutionStudentsResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: {
+                students: components["schemas"]["StudentRiskRow"][];
+            };
+        };
+        RoiMetrics: {
+            prevented_dropouts: number;
+            protected_revenue: number;
+            revenue_per_student: number;
+            active_high_risk: number;
+            total_students: number;
+        };
+        RoiResponse: components["schemas"]["SuccessEnvelope"] & {
+            data?: components["schemas"]["RoiMetrics"];
+        };
     };
     responses: never;
     parameters: never;
@@ -158,6 +565,81 @@ export interface operations {
             };
         };
     };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     streamChat: {
         parameters: {
             query?: never;
@@ -180,8 +662,460 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden (non-student role) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Check-in session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    startCheckin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current check-in session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckinSessionResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCurrentCheckin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current check-in session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckinSessionResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listCheckinHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Check-in history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckinHistoryResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateCurrentMood: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoodUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated check-in session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckinSessionResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskListResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patchTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated task */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPatchResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Task not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getMyProfileStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileStatsResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    uploadLinkedin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Extracted competencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompetencyExtractResponse"];
+                };
+            };
+            /** @description Invalid file */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listInstitutionStudents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Student risk rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstitutionStudentsResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getInstitutionRoi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ROI metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoiResponse"];
+                };
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

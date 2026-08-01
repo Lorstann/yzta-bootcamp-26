@@ -8,6 +8,7 @@ export type AuthUser = {
   email: string
   full_name: string | null
   role: string
+  onboarding_completed?: boolean
 }
 
 const TOKEN_KEY = 'equa_access_token'

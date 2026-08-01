@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.dependencies.auth import CurrentUser
 from backend.db.session import AsyncSessionLocal
 from backend.db.tenant_context import apply_tenant_context
+from backend.domain.errors.app_error import AppError
 from backend.domain.schemas.chat import ChatRequest
 from backend.repositories.checkin_repo import CheckinRepository
 from backend.repositories.user_repo import StudentProfileRepository
@@ -40,13 +41,28 @@ async def _build_memory_context(
     return "Geçmiş check-in özetleri:\n" + "\n".join(f"- {s}" for s in summaries)
 
 
+async def _assert_session_owned(
+    db: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    repo = CheckinRepository(db)
+    session = await repo.get_with_tasks(session_id)
+    if session is None:
+        raise AppError("Check-in session not found", code="NOT_FOUND", status_code=404)
+    if session.tenant_id != tenant_id or session.user_id != user_id:
+        raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+
+
 async def _event_generator(
     request: ChatRequest,
     *,
-    user: CurrentUser | None,
+    user: CurrentUser,
 ):
-    tenant_id = user.tenant_id if user else request.tenant_id
-    user_id = user.id if user else None
+    tenant_id = user.tenant_id
+    user_id = user.id
     full_parts: list[str] = []
     curriculum_context = ""
     memory_context = ""
@@ -54,14 +70,22 @@ async def _event_generator(
     async with AsyncSessionLocal() as db:
         try:
             await apply_tenant_context(db, tenant_id)
+            await _assert_session_owned(
+                db,
+                session_id=request.session_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+            )
             curriculum_context = await retrieve_curriculum_context(
                 db, tenant_id=tenant_id, query=request.message, top_k=4
             )
-            if user_id:
-                memory_context = await _build_memory_context(
-                    db, tenant_id=tenant_id, user_id=user_id
-                )
+            memory_context = await _build_memory_context(
+                db, tenant_id=tenant_id, user_id=user_id
+            )
             await db.commit()
+        except AppError:
+            await db.rollback()
+            raise
         except Exception as exc:
             await db.rollback()
             logger.error("RAG retrieve failed: %s", exc)
@@ -71,15 +95,17 @@ async def _event_generator(
     )
 
     capacity = None
-    if user_id:
-        async with AsyncSessionLocal() as db:
-            try:
-                await apply_tenant_context(db, tenant_id)
-                profile = await StudentProfileRepository(db).get_by_user_id(user_id)
-                capacity = profile.capacity_score if profile else None
-                await db.commit()
-            except Exception:
-                await db.rollback()
+    async with AsyncSessionLocal() as db:
+        try:
+            await apply_tenant_context(db, tenant_id)
+            profile = await StudentProfileRepository(db).get_by_user_id(user_id)
+            capacity = profile.capacity_score if profile else None
+            await db.commit()
+        except Exception as exc:
+            await db.rollback()
+            logger.error(
+                "Capacity lookup failed | user_id=%s err=%s", user_id, exc
+            )
 
     async for event in stream_chat_response(
         message=request.message,
@@ -98,44 +124,67 @@ async def _event_generator(
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
             assistant_text = "".join(full_parts)
-            if user_id:
-                async with AsyncSessionLocal() as db:
-                    try:
-                        await apply_tenant_context(db, tenant_id)
-                        if event.get("guardrail_triggered"):
-                            await record_high_risk_signal(
-                                db,
-                                tenant_id=tenant_id,
-                                user_id=user_id,
-                                category=event.get("guardrail_category") or "critical",
-                            )
-                        else:
-                            await persist_turn_and_tasks(
-                                db,
-                                session_id=request.session_id,
-                                tenant_id=tenant_id,
-                                user_id=user_id,
-                                user_message=request.message,
-                                assistant_message=assistant_text,
-                                weekly_tasks=event.get("weekly_tasks"),
-                            )
-                        await db.commit()
-                    except Exception as exc:
-                        await db.rollback()
-                        logger.error("Chat persist failed: %s", exc)
+            async with AsyncSessionLocal() as db:
+                try:
+                    await apply_tenant_context(db, tenant_id)
+                    if event.get("guardrail_triggered"):
+                        await record_high_risk_signal(
+                            db,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            category=event.get("guardrail_category") or "critical",
+                        )
+                    else:
+                        await persist_turn_and_tasks(
+                            db,
+                            session_id=request.session_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            user_message=request.message,
+                            assistant_message=assistant_text,
+                            weekly_tasks=event.get("weekly_tasks"),
+                        )
+                    await db.commit()
+                except Exception as exc:
+                    await db.rollback()
+                    logger.error("Chat persist failed: %s", exc)
         else:
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
 async def chat_stream(
     request: ChatRequest,
-    user: CurrentUser | None = None,
+    user: CurrentUser,
 ) -> StreamingResponse:
+    # Validate session ownership before opening the SSE stream so clients
+    # get a proper JSON error envelope (404/403) instead of a broken stream.
+    async with AsyncSessionLocal() as db:
+        try:
+            await apply_tenant_context(db, user.tenant_id)
+            await _assert_session_owned(
+                db,
+                session_id=request.session_id,
+                tenant_id=user.tenant_id,
+                user_id=user.id,
+            )
+            await db.commit()
+        except AppError:
+            await db.rollback()
+            raise
+        except Exception as exc:
+            await db.rollback()
+            logger.error("Session ownership check failed: %s", exc)
+            raise AppError(
+                "Unable to verify chat session",
+                code="INTERNAL_ERROR",
+                status_code=500,
+            ) from exc
+
     logger.info(
         "Chat stream başlatıldı | session_id=%s tenant_id=%s auth=%s",
         request.session_id,
-        user.tenant_id if user else request.tenant_id,
-        bool(user),
+        user.tenant_id,
+        True,
     )
     return StreamingResponse(
         _event_generator(request, user=user),

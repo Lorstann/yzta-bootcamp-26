@@ -115,11 +115,22 @@ async def compute_roi(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
-    revenue_per_student: float = 5000.0,
+    revenue_per_student: float | None = None,
 ) -> dict[str, Any]:
     """S23/S24: Prevented dropouts + protected revenue."""
+    from backend.db.models.tenant import Tenant
+
     user_repo = UserRepository(session)
     risk_repo = RiskSignalRepository(session)
+
+    if revenue_per_student is None:
+        t_result = await session.execute(select(Tenant).where(Tenant.id == tenant_id))
+        tenant = t_result.scalar_one_or_none()
+        revenue_per_student = (
+            float(tenant.revenue_per_student)
+            if tenant is not None and getattr(tenant, "revenue_per_student", None) is not None
+            else 5000.0
+        )
 
     students = [u for u in await user_repo.get_by_tenant(tenant_id) if u.role == "student"]
     active_signals = await risk_repo.list_for_tenant(tenant_id)
@@ -139,13 +150,13 @@ async def compute_roi(
     prevented = len(high_risk_user_ids & still_active)
 
     high_risk_active = sum(
-        1 for s in active_signals if s.level in ("red", "high_risk", "yellow")
+        1 for s in active_signals if s.level in ("red", "high_risk")
     )
 
     return {
         "prevented_dropouts": prevented,
-        "protected_revenue": round(prevented * revenue_per_student, 2),
-        "revenue_per_student": revenue_per_student,
+        "protected_revenue": round(prevented * float(revenue_per_student), 2),
+        "revenue_per_student": float(revenue_per_student),
         "active_high_risk": high_risk_active,
         "total_students": len(students),
     }

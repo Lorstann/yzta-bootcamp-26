@@ -3,20 +3,25 @@ info:
   title: Equa API
   version: 1.0.0
   description: |
-    Equa B2B2C MVP API contract (locked for parallel frontend/backend work).
+    Equa B2B2C MVP API contract.
     Breaking changes require a new major path (`/api/v2`).
 servers:
   - url: http://localhost:8000
     description: Local development
 tags:
   - name: system
+  - name: auth
   - name: chat
+  - name: checkins
+  - name: profiles
+  - name: institution
 paths:
   /api/v1/health:
     get:
       tags: [system]
       summary: Health check
       operationId: getHealth
+      security: []
       responses:
         '200':
           description: Service is healthy
@@ -31,6 +36,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register a student account
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /api/v1/chat/stream:
     post:
       tags: [chat]
@@ -38,7 +101,10 @@ paths:
       operationId: streamChat
       description: |
         Accepts a student message and streams SSE events.
+        Requires Bearer JWT; tenant is taken from the token.
         Each `data:` line is a JSON object with `type` of `chunk`, `done`, or `error`.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -58,15 +124,24 @@ paths:
                   - `{"type":"chunk","data":"..."}`
                   - `{"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["..."]}`
                   - `{"type":"error","message":"..."}`
-              examples:
-                chunk:
-                  summary: Token chunk
-                  value: |
-                    data: {"type":"chunk","data":"Merhaba "}\n\n
-                done:
-                  summary: Stream complete
-                  value: |
-                    data: {"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["1 görev"]}\n\n
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden (non-student role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Check-in session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Validation error
           content:
@@ -74,7 +149,345 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /api/v1/checkins:
+    post:
+      tags: [checkins]
+      summary: Start or resume the current weekly check-in
+      operationId: startCheckin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current check-in session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinSessionResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/checkins/current:
+    get:
+      tags: [checkins]
+      summary: Get or start the current weekly check-in
+      operationId: getCurrentCheckin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current check-in session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinSessionResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/checkins/history:
+    get:
+      tags: [checkins]
+      summary: List past check-in sessions
+      operationId: listCheckinHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 104
+            default: 26
+      responses:
+        '200':
+          description: Check-in history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinHistoryResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/checkins/current/mood:
+    patch:
+      tags: [checkins]
+      summary: Set mood score for the current check-in (1-5)
+      operationId: updateCurrentMood
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoodUpdateRequest'
+      responses:
+        '200':
+          description: Updated check-in session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinSessionResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/tasks:
+    get:
+      tags: [checkins]
+      summary: List all weekly tasks for the current student
+      operationId: listTasks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/tasks/{task_id}:
+    patch:
+      tags: [checkins]
+      summary: Mark a weekly task complete/incomplete
+      operationId: patchTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCompleteRequest'
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPatchResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/profiles/me:
+    get:
+      tags: [profiles]
+      summary: Get current student profile
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/profiles/me/stats:
+    get:
+      tags: [profiles]
+      summary: Dashboard stats — check-in count, streak, capacity history
+      operationId: getMyProfileStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileStatsResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/profiles/me/onboarding:
+    patch:
+      tags: [profiles]
+      summary: Update onboarding / capacity
+      operationId: updateOnboarding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingUpdateRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/profiles/me/linkedin:
+    post:
+      tags: [profiles]
+      summary: Upload LinkedIn PDF for competency extraction
+      operationId: uploadLinkedin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Extracted competencies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetencyExtractResponse'
+        '400':
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/students:
+    get:
+      tags: [institution]
+      summary: List students with risk scores (staff only)
+      operationId: listInstitutionStudents
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Student risk rows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionStudentsResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/roi:
+    get:
+      tags: [institution]
+      summary: ROI metrics for the tenant (staff only)
+      operationId: getInstitutionRoi
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ROI metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoiResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     ApiError:
       type: object
@@ -141,19 +554,93 @@ components:
             data:
               $ref: '#/components/schemas/HealthData'
 
-    ChatRequest:
+    RegisterRequest:
       type: object
       additionalProperties: false
-      required: [tenant_id, session_id, message]
+      required: [tenant_slug, email, password, full_name]
       properties:
+        tenant_slug:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        role:
+          type: string
+          enum: [student]
+          default: student
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_slug, email, password]
+      properties:
+        tenant_slug:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    PublicUser:
+      type: object
+      additionalProperties: false
+      required: [id, tenant_id, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
         tenant_id:
           type: string
           format: uuid
-          description: Tenant UUID (temporary until JWT claims; S18).
+        email:
+          type: string
+        full_name:
+          nullable: true
+          type: string
+        role:
+          type: string
+
+    AuthTokenData:
+      type: object
+      additionalProperties: false
+      required: [access_token, token_type, user]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+        user:
+          $ref: '#/components/schemas/PublicUser'
+
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthTokenData'
+
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [session_id, message]
+      properties:
         session_id:
           type: string
           format: uuid
-          description: Check-in session UUID.
+          description: Check-in session UUID owned by the authenticated student.
         message:
           type: string
           minLength: 1
@@ -210,3 +697,331 @@ components:
         - $ref: '#/components/schemas/ChatSseErrorEvent'
       discriminator:
         propertyName: type
+
+    WeeklyTaskOut:
+      type: object
+      additionalProperties: false
+      required: [id, title, is_completed]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          nullable: true
+          type: string
+        is_completed:
+          type: boolean
+        completed_at:
+          nullable: true
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, suspended]
+          default: active
+        due_date:
+          nullable: true
+          type: string
+          format: date
+        created_at:
+          nullable: true
+          type: string
+          format: date-time
+        week_start:
+          nullable: true
+          type: string
+          format: date
+        checkin_session_id:
+          nullable: true
+          type: string
+          format: uuid
+
+    CheckinSessionOut:
+      type: object
+      additionalProperties: false
+      required: [id, week_start, status, messages, weekly_tasks]
+      properties:
+        id:
+          type: string
+          format: uuid
+        week_start:
+          type: string
+          format: date
+        status:
+          type: string
+        summary:
+          nullable: true
+          type: string
+        mood_score:
+          nullable: true
+          type: integer
+          minimum: 1
+          maximum: 5
+        messages:
+          type: array
+          items:
+            type: object
+        weekly_tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyTaskOut'
+
+    CheckinSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CheckinSessionOut'
+
+    MoodUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [mood_score]
+      properties:
+        mood_score:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    CheckinHistoryItem:
+      type: object
+      additionalProperties: false
+      required: [id, week_start, status, task_count, completed_task_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        week_start:
+          type: string
+          format: date
+        status:
+          type: string
+        summary:
+          nullable: true
+          type: string
+        mood_score:
+          nullable: true
+          type: integer
+        task_count:
+          type: integer
+        completed_task_count:
+          type: integer
+
+    CheckinHistoryResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                sessions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CheckinHistoryItem'
+
+    TaskListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WeeklyTaskOut'
+
+    TaskCompleteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        is_completed:
+          type: boolean
+          default: true
+
+    TaskPatchResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              additionalProperties: true
+
+    ProfileStatsOut:
+      type: object
+      additionalProperties: false
+      required: [total_checkins, streak_weeks, completed_tasks]
+      properties:
+        total_checkins:
+          type: integer
+        streak_weeks:
+          type: integer
+        completed_tasks:
+          type: integer
+        open_tasks:
+          type: integer
+        capacity_history:
+          type: array
+          items:
+            type: object
+            properties:
+              score:
+                type: number
+              recorded_at:
+                type: string
+                format: date-time
+
+    ProfileStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ProfileStatsOut'
+
+    ProfileOut:
+      type: object
+      additionalProperties: false
+      required: [user_id, onboarding_completed]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        capacity_score:
+          nullable: true
+          type: number
+        linkedin_url:
+          nullable: true
+          type: string
+        bio:
+          nullable: true
+          type: string
+        competencies:
+          nullable: true
+          type: object
+        onboarding_completed:
+          type: boolean
+
+    ProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ProfileOut'
+
+    OnboardingUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [capacity_score]
+      properties:
+        capacity_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        bio:
+          nullable: true
+          type: string
+          maxLength: 2000
+        onboarding_completed:
+          type: boolean
+          default: true
+
+    CompetencyExtractOut:
+      type: object
+      additionalProperties: false
+      required: [competencies, source, fallback_required]
+      properties:
+        competencies:
+          type: object
+        source:
+          type: string
+        fallback_required:
+          type: boolean
+
+    CompetencyExtractResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CompetencyExtractOut'
+
+    StudentRiskRow:
+      type: object
+      additionalProperties: false
+      required: [user_id, email, risk_level]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        full_name:
+          nullable: true
+          type: string
+        email:
+          type: string
+        risk_level:
+          type: string
+          enum: [green, yellow, red]
+        rationale:
+          nullable: true
+          type: string
+        metrics:
+          nullable: true
+          type: object
+        capacity_score:
+          nullable: true
+          type: number
+        updated_at:
+          nullable: true
+          type: string
+          format: date-time
+
+    InstitutionStudentsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [students]
+              properties:
+                students:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/StudentRiskRow'
+
+    RoiMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - prevented_dropouts
+        - protected_revenue
+        - revenue_per_student
+        - active_high_risk
+        - total_students
+      properties:
+        prevented_dropouts:
+          type: integer
+        protected_revenue:
+          type: number
+        revenue_per_student:
+          type: number
+        active_high_risk:
+          type: integer
+        total_students:
+          type: integer
+
+    RoiResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RoiMetrics'

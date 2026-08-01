@@ -8,4 +8,4 @@ postgres_data/
 .pytest_cache/
 frontend/test-results/
 frontend/playwright-report/
-
+stitch_equa_ai_coaching_platform/

@@ -6,14 +6,19 @@ Pydantic BaseSettings ile .env dosyasından otomatik okur.
 
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-LlmProvider = Literal["openai", "anthropic", "bedrock"]
+LlmProvider = Literal["openai", "anthropic", "bedrock", "gemini"]
+
+_INSECURE_JWT_DEFAULTS = {
+    "change-me-in-production",
+    "change-me-in-production-use-a-long-random-string",
+}
 
 
 class Settings(BaseSettings):
-    # Veritabanı
+    # Veritabanı — default is for local docker-compose only (port 5433).
     database_url: str = "postgresql+asyncpg://equa:equa_dev@localhost:5433/equa"
 
     # Güvenlik
@@ -22,9 +27,9 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60
 
     # LLM / AI (A1)
-    llm_provider: LlmProvider = "openai"
+    llm_provider: LlmProvider = "gemini"
     llm_api_key: str = ""
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gemini-3.5-flash-lite"
 
     @field_validator("llm_provider", mode="before")
     @classmethod
@@ -47,6 +52,20 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+    @model_validator(mode="after")
+    def reject_insecure_production_secrets(self) -> "Settings":
+        if self.app_env.lower() == "production":
+            if self.jwt_secret in _INSECURE_JWT_DEFAULTS or len(self.jwt_secret) < 32:
+                raise ValueError(
+                    "JWT_SECRET must be set to a strong random value "
+                    "(≥32 chars) when APP_ENV=production"
+                )
+            if "equa_dev" in self.database_url or "localhost" in self.database_url:
+                raise ValueError(
+                    "DATABASE_URL must not use local/dev defaults when APP_ENV=production"
+                )
+        return self
 
 
 # Tekil instance — her yerden `from backend.config import settings` ile çağrılır.

@@ -1,7 +1,7 @@
 # Equa — Proje İlerleme Takibi
 
 **Takım:** 320  
-**Durum:** Sprint 1 POC kapatıldı · Sprint 2–3 MVP özellikleri landed (auth, check-in, RAG, dashboard, E2E smoke)  
+**Durum:** Sprint 1–3 MVP hardening landed (auth guards, onboarding, PDF UX, institution XAI, TanStack Query, E2E journeys)  
 **Kaynak dokümanlar:** [PRD](specs/prds/prd.md) · [Stories](specs/stories/README.md) · [Tech Stack](specs/techstack.md)
 
 ---
@@ -147,8 +147,12 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 28 Temmuz 2026
+**Son güncelleme:** 1 Ağustos 2026
 
+- **Stitch Dark Redesign:** Frontend Deep Space koyu glassmorphism temasına geçildi (Plus Jakarta Sans, lucide-react, `@theme` token’ları). Yeni route’lar: `/` Landing, `/dashboard`, `/tasks`, `/takvim`. Shell: glass sidebar + TopBar + mobil bottom nav. Backend: Alembic 008 (`capacity_snapshots` + `weekly_tasks.due_date`); `GET /tasks`, `GET /checkins/history`, `GET /profiles/me/stats`, `PATCH /checkins/current/mood`. OpenAPI + MSW + Vitest (16) + pytest dashboard stats yeşil.
+
+- **MVP Hardening (P0–P2):** Chat zorunlu auth (tenant JWT’den); session sahipliği; öğrenci happy path (check-in session → chat → görev persist); frontend `RequireAuth` / `RequireRole`; register rolü student-only; guardrail UI; production JWT guard; OpenAPI 12 endpoint + bearerAuth; onboarding sihirbazı; PDF upload doğrulama + chip UX + fallback sohbet; `weekly_tasks.status` + tenant `revenue_per_student` (Alembic 007); kurum filtre/XAI/N+1; TanStack Query + RHF/Zod; UI primitives/motion/offline/install; RAG AC2 filter; logger redaction; pytest + Vitest + Playwright journey genişletmesi.
+- **Not:** LinkedIn PDF S3 yok — in-memory parse (MVP bilinci).
 - **F5–F8 / M2 tamamlandı:** Chat UI mesaj listesi, SSE streaming, empty/loading/error, MSW Vitest smoke.
 - **A4/A5/A7 / M4 tamamlandı:** chunk+embed ingest, pgvector retrieve, chat prompt inject; `python -m backend.scripts.ingest_curriculum`.
 - **M3 tamamlandı:** `pytest backend/tests` RLS izolasyon suite yeşil (`equa_app` role).
@@ -160,5 +164,6 @@
 - **F4 tamamlandı:** Kilitli kontrat `specs/openapi/v1.yaml`; typed client (`src/shared/api`); MSW mock (`src/mocks`) health + SSE chat; `npm run generate:api`.
 - **B4 / M1:** OpenAPI v1 repo'da kilitli; frontend mock Vitest smoke yeşil.
 - **A1 tamamlandı:** OpenAI varsayılan sağlayıcı olarak seçildi; `LLM_PROVIDER` ortam değişkeni `.env.example` ve `backend/config.py`'ye eklendi. `backend/services/llm/provider.py` modülü ile sağlayıcı/model ayarları merkezi okunuyor.
+- **A1 güncelleme:** Varsayılan LLM sağlayıcı **Gemini** (`LLM_PROVIDER=gemini`, `LLM_MODEL=gemini-2.0-flash`); `langchain-google-genai` eklendi. Streaming, competency extract ve embeddings Gemini'yi destekliyor.
 - **A2 tamamlandı:** LangChain bağımlılıkları `requirements.txt`'e eklendi (`langchain`, `langchain-openai`, `langchain-anthropic`).
 - **A3 tamamlandı:** `backend/services/llm/streaming.py` — `stream_llm_response()` async generator; OpenAI/Anthropic streaming + API key yoksa mock mod. Backend B5/B9 endpoint'e bağlayacak.

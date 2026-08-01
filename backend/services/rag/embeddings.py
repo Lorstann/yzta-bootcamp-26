@@ -1,6 +1,8 @@
 """
 backend/services/rag/embeddings.py
-A4: Embedding helpers (OpenAI or deterministic mock).
+A4: Embedding helpers (Gemini / OpenAI or deterministic mock).
+
+pgvector column is Vector(1536); Gemini native dims may differ — we pad/truncate.
 """
 
 from __future__ import annotations
@@ -32,6 +34,18 @@ def _mock_embedding(text: str) -> list[float]:
     return [v / norm for v in values]
 
 
+def _fit_dim(vector: list[float]) -> list[float]:
+    """Pad or truncate to EMBEDDING_DIM, then L2-normalize."""
+    if len(vector) == EMBEDDING_DIM:
+        return vector
+    if len(vector) > EMBEDDING_DIM:
+        fitted = vector[:EMBEDDING_DIM]
+    else:
+        fitted = vector + [0.0] * (EMBEDDING_DIM - len(vector))
+    norm = math.sqrt(sum(v * v for v in fitted)) or 1.0
+    return [v / norm for v in fitted]
+
+
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
@@ -41,17 +55,35 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
         return [_mock_embedding(t) for t in texts]
 
     try:
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=settings.llm_api_key)
-        response = await client.embeddings.create(
-            model="text-embedding-3-small",
-            input=texts,
-        )
-        return [item.embedding for item in response.data]
+        if settings.llm_provider == "gemini":
+            return await _embed_gemini(texts)
+        return await _embed_openai(texts)
     except Exception as exc:
         logger.error("Embedding API hatası, mock'a düşülüyor: %s", exc)
         return [_mock_embedding(t) for t in texts]
+
+
+async def _embed_openai(texts: list[str]) -> list[list[float]]:
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=settings.llm_api_key)
+    response = await client.embeddings.create(
+        model="text-embedding-3-small",
+        input=texts,
+    )
+    return [_fit_dim(item.embedding) for item in response.data]
+
+
+async def _embed_gemini(texts: list[str]) -> list[list[float]]:
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=settings.llm_api_key,
+        output_dimensionality=EMBEDDING_DIM,
+    )
+    vectors = await embeddings.aembed_documents(texts)
+    return [_fit_dim(list(v)) for v in vectors]
 
 
 async def embed_query(text: str) -> list[float]:

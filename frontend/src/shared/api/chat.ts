@@ -4,13 +4,13 @@ import { parseSse, type ChatSseEvent } from './sse'
 import { authHeaders } from '@/shared/auth/storage'
 
 export type ChatStreamRequest = {
-  tenant_id: string
   session_id: string
   message: string
 }
 
 /**
  * POST /api/v1/chat/stream — yields SSE chat events until the stream ends.
+ * Requires a valid Bearer token; tenant comes from the JWT.
  */
 export async function* streamChat(
   body: ChatStreamRequest,

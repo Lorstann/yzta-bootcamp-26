@@ -70,14 +70,26 @@ async def stream_chat_response(
 
     except Exception as exc:
         logger.error("Chat streaming hatası: %s", exc)
-        yield {"type": "error", "message": "AI servisi şu an yanıt veremiyor."}
+        from backend.domain.errors.app_error import AppError
+
+        message = (
+            exc.message
+            if isinstance(exc, AppError)
+            else "AI servisi şu an yanıt veremiyor."
+        )
+        yield {"type": "error", "message": message}
         return
 
-    # 3. [GOREVLER] bloğunu ayrıştır + S14 curriculum-only soft filter
+    # 3. [GOREVLER] bloğunu ayrıştır + S14 curriculum-only filter (AC2)
     full_response = "".join(full_response_parts)
     weekly_tasks = _parse_tasks(full_response)
-    if weekly_tasks and curriculum_context:
-        weekly_tasks = _filter_tasks_to_curriculum(weekly_tasks, curriculum_context)
+
+    ctx = (curriculum_context or "").strip()
+    if not ctx or ctx.startswith("Henüz müfredat"):
+        # No curriculum grounding → do not assign tasks
+        weekly_tasks = None
+    elif weekly_tasks:
+        weekly_tasks = _filter_tasks_to_curriculum(weekly_tasks, ctx)
 
     yield {
         "type": "done",
@@ -85,6 +97,27 @@ async def stream_chat_response(
         "guardrail_category": None,
         "weekly_tasks": weekly_tasks,
     }
+
+
+_OFF_CURRICULUM_HINTS = (
+    "solidity",
+    "blockchain",
+    "rust",
+    "kotlin",
+    "swift",
+    "flutter",
+    "unreal",
+)
+
+
+def is_likely_off_curriculum(message: str, curriculum_context: str) -> bool:
+    """Heuristic: student asks for a known off-scope topic absent from RAG."""
+    lowered = message.lower()
+    ctx = (curriculum_context or "").lower()
+    for hint in _OFF_CURRICULUM_HINTS:
+        if hint in lowered and hint not in ctx:
+            return True
+    return False
 
 
 def _filter_tasks_to_curriculum(tasks: list[str], curriculum_context: str) -> list[str]:

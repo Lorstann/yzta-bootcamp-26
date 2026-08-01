@@ -17,7 +17,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=1, max_length=255)
-    role: Literal["student", "instructor", "admin"] = "student"
+    # Public self-registration is student-only; staff roles come from seed/admin.
+    role: Literal["student"] = "student"
 
 
 class LoginRequest(BaseModel):
@@ -36,6 +37,7 @@ class PublicUser(BaseModel):
     email: str
     full_name: Optional[str] = None
     role: str
+    onboarding_completed: Optional[bool] = None
 
 
 class AuthTokenData(BaseModel):

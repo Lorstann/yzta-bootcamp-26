@@ -10,11 +10,12 @@ describe('API client with MSW', () => {
   })
 
   it('streamChat yields mock chunks then done', async () => {
+    // Auth header required after P0.1
+    localStorage.setItem('equa_access_token', 'mock-token')
     const chunks: string[] = []
     let doneTasks: string[] | null = null
 
     for await (const event of streamChat({
-      tenant_id: '11111111-1111-1111-1111-111111111111',
       session_id: '22222222-2222-2222-2222-222222222222',
       message: 'Merhaba',
     })) {
@@ -31,9 +32,9 @@ describe('API client with MSW', () => {
   })
 
   it('streamChat surfaces SSE error events for message "error"', async () => {
+    localStorage.setItem('equa_access_token', 'mock-token')
     const events = []
     for await (const event of streamChat({
-      tenant_id: '11111111-1111-1111-1111-111111111111',
       session_id: '22222222-2222-2222-2222-222222222222',
       message: 'error',
     })) {

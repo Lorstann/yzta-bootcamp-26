@@ -1,36 +1,17 @@
 """
 backend/api/routes/chat.py
-B5: POST /api/v1/chat/stream — SSE streaming chat endpoint.
+B5: POST /api/v1/chat/stream — SSE streaming chat endpoint (auth required).
 """
 
 from fastapi import APIRouter, Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from backend.api.controllers.chat_controller import chat_stream
-from backend.api.dependencies.auth import CurrentUser
+from backend.api.dependencies.auth import CurrentUser, require_roles
 from backend.domain.schemas.chat import ChatRequest
-from backend.services.auth_service import decode_access_token
-import uuid
 
 router = APIRouter()
-_bearer = HTTPBearer(auto_error=False)
 
-
-def _optional_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> CurrentUser | None:
-    if credentials is None or not credentials.credentials:
-        return None
-    try:
-        payload = decode_access_token(credentials.credentials)
-        return CurrentUser(
-            id=uuid.UUID(payload["sub"]),
-            tenant_id=uuid.UUID(payload["tenant_id"]),
-            role=str(payload.get("role", "student")),
-            email=str(payload.get("email", "")),
-        )
-    except Exception:
-        return None
+_student = require_roles("student")
 
 
 @router.post(
@@ -40,6 +21,6 @@ def _optional_user(
 )
 async def stream_chat_endpoint(
     request: ChatRequest,
-    user: CurrentUser | None = Depends(_optional_user),
+    user: CurrentUser = Depends(_student),
 ):
     return await chat_stream(request, user=user)

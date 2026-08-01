@@ -26,14 +26,17 @@ from backend.services.auth_service import (
 logger = logging.getLogger(__name__)
 
 
-def to_public_user(user: User) -> dict[str, Any]:
-    return {
+def to_public_user(user: User, *, onboarding_completed: bool | None = None) -> dict[str, Any]:
+    data: dict[str, Any] = {
         "id": str(user.id),
         "tenant_id": str(user.tenant_id),
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
     }
+    if onboarding_completed is not None:
+        data["onboarding_completed"] = onboarding_completed
+    return data
 
 
 async def _get_tenant_by_slug(db: AsyncSession, slug: str) -> Tenant:
@@ -87,7 +90,12 @@ async def register_user(
         email=user.email,
     )
     logger.info("User registered | user_id=%s tenant_id=%s", user.id, tenant.id)
-    return {"access_token": token, "token_type": "bearer", "user": to_public_user(user)}
+    onboarded = None if role != "student" else False
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": to_public_user(user, onboarding_completed=onboarded),
+    }
 
 
 async def login_user(
@@ -114,4 +122,14 @@ async def login_user(
         email=user.email,
     )
     logger.info("User login | user_id=%s", user.id)
-    return {"access_token": token, "token_type": "bearer", "user": to_public_user(user)}
+    onboarded: bool | None = None
+    if user.role == "student":
+        from backend.repositories.user_repo import StudentProfileRepository
+
+        profile = await StudentProfileRepository(db).get_by_user_id(user.id)
+        onboarded = bool(profile.onboarding_completed) if profile else False
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": to_public_user(user, onboarding_completed=onboarded),
+    }

@@ -1,23 +1,38 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
-  --color-equa-ink: #0c1f1c;
-  --color-equa-muted: #3d5a54;
-  --color-equa-surface: #f3f7f5;
-  --color-equa-accent: #0f766e;
-  --color-equa-accent-soft: #ccfbf1;
-  --color-equa-line: #c5d4cf;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-equa-bg: #141218;
+  --color-equa-surface: #211f24;
+  --color-equa-surface-low: #1d1b20;
+  --color-equa-surface-high: #2b292f;
+  --color-equa-surface-highest: #36343a;
+  --color-equa-surface-lowest: #0f0d13;
+  --color-equa-primary: #cfbcff;
+  --color-equa-on-primary: #381e72;
+  --color-equa-primary-container: #6750a4;
+  --color-equa-on-primary-container: #e0d2ff;
+  --color-equa-secondary: #cdc0e9;
+  --color-equa-tertiary: #e7c365;
+  --color-equa-on-tertiary: #3e2e00;
+  --color-equa-error: #ffb4ab;
+  --color-equa-on-error: #690005;
+  --color-equa-ink: #e6e0e9;
+  --color-equa-muted: #cbc4d2;
+  --color-equa-outline: #a8a2b0;
+  --color-equa-line: #494551;
+  --color-equa-accent: #cfbcff;
+  --color-equa-accent-soft: rgba(207, 188, 255, 0.12);
+  --color-equa-cyan: #22d3ee;
 }
 
 :root {
-  --color-bg: #e8f0ec;
-  --color-bg-mid: #d4e5df;
-  --color-accent: #0f766e;
-  --color-ink: #0c1f1c;
-  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --color-bg: #141218;
+  --color-ink: #e6e0e9;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   color: var(--color-ink);
   font-family: var(--font-body);
   font-synthesis: none;
@@ -44,9 +59,9 @@ body {
   overflow-x: hidden;
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(ellipse 120% 80% at 10% -20%, #b8d4c8 0%, transparent 55%),
-    radial-gradient(ellipse 90% 60% at 100% 0%, #c5ddd4 0%, transparent 50%),
-    linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-mid) 100%);
+    radial-gradient(ellipse 50% 50% at -10% -20%, rgba(207, 188, 255, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 110% 110%, rgba(231, 195, 101, 0.1) 0%, transparent 50%),
+    linear-gradient(165deg, #141218 0%, #0f0d13 100%);
   background-attachment: fixed;
 }
 
@@ -56,4 +71,100 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+}
+
+.glass-panel {
+  background: rgba(20, 18, 24, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(73, 69, 81, 0.25);
+}
+
+.glow-hover {
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 0 24px rgba(207, 188, 255, 0.25);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-equa-primary);
+  outline-offset: 2px;
+}
+
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes progressRing {
+  from {
+    stroke-dashoffset: 283;
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.typing-dot {
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

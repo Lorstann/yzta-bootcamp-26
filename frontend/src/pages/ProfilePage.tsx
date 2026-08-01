@@ -1,7 +1,23 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { School } from 'lucide-react'
 import { apiGet, apiPatch, apiPostForm } from '@/shared/api/client'
-import { getAccessToken } from '@/shared/auth/storage'
+import { queryKeys } from '@/shared/api/query-keys'
+import { getAccessToken, getStoredUser, setAuth } from '@/shared/auth/storage'
+import {
+  Avatar,
+  Button,
+  Card,
+  Input,
+  ProgressBar,
+  StatCard,
+  Toggle,
+} from '@/components/ui'
+import { clearAuth } from '@/shared/auth/storage'
 
 type Profile = {
   user_id: string
@@ -11,138 +27,386 @@ type Profile = {
   onboarding_completed: boolean
 }
 
+type ProfileStats = {
+  total_checkins: number
+  streak_weeks: number
+  completed_tasks: number
+  open_tasks: number
+  capacity_history: Array<{ score: number; recorded_at: string }>
+}
+
+const profileSchema = z.object({
+  capacity: z.number().min(0, '0–100 arası').max(100, '0–100 arası'),
+  bio: z.string().max(2000).optional(),
+})
+
+type ProfileForm = z.infer<typeof profileSchema>
+
+function skillChips(competencies: Record<string, unknown> | null): string[] {
+  if (!competencies) return []
+  const skills = competencies.skills
+  if (Array.isArray(skills)) {
+    return skills.map(String).slice(0, 20)
+  }
+  return []
+}
+
 export function ProfilePage() {
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [capacity, setCapacity] = useState('70')
-  const [bio, setBio] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null)
   const [fallbackHint, setFallbackHint] = useState(false)
+  const [emailNotif, setEmailNotif] = useState(true)
+  const [taskNotif, setTaskNotif] = useState(true)
+  const user = getStoredUser()
 
-  useEffect(() => {
-    if (!getAccessToken()) {
-      setError('Profil için giriş gerekli.')
-      return
-    }
-    void apiGet<Profile>('/api/v1/profiles/me')
-      .then((p) => {
-        setProfile(p)
-        if (p.capacity_score != null) setCapacity(String(p.capacity_score))
-        if (p.bio) setBio(p.bio)
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Hata'))
-  }, [])
+  const { data: profile, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.profile.me(),
+    queryFn: () => apiGet<Profile>('/api/v1/profiles/me'),
+  })
+  const { data: stats } = useQuery({
+    queryKey: queryKeys.profile.stats(),
+    queryFn: () => apiGet<ProfileStats>('/api/v1/profiles/me/stats'),
+  })
 
-  async function saveOnboarding(e: FormEvent) {
+  const form = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    values: {
+      capacity: profile?.capacity_score ?? 70,
+      bio: profile?.bio ?? '',
+    },
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: (values: ProfileForm) =>
+      apiPatch<Profile>('/api/v1/profiles/me/onboarding', {
+        capacity_score: values.capacity,
+        bio: values.bio || null,
+        onboarding_completed: true,
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.profile.me(), updated)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.stats() })
+      const token = getAccessToken()
+      const stored = getStoredUser()
+      if (token && stored) {
+        setAuth(token, { ...stored, onboarding_completed: true })
+      }
+    },
+  })
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('Dosya 10 MB sınırını aşıyor.')
+      }
+      const name = file.name.toLowerCase()
+      if (!name.endsWith('.pdf') && !name.endsWith('.txt')) {
+        throw new Error('Sadece PDF veya metin dosyası yükleyebilirsin.')
+      }
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiPostForm<{
+        competencies: Record<string, unknown>
+        fallback_required: boolean
+      }>('/api/v1/profiles/me/linkedin', formData)
+    },
+    onSuccess: (result) => {
+      setFallbackHint(result.fallback_required)
+      setUploadMsg(
+        result.fallback_required
+          ? 'PDF okunamadı — sohbette eksik bilgileri tamamlayalım.'
+          : 'Yetkinlikler çıkarıldı.',
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.me() })
+    },
+    onError: (err) => {
+      setUploadMsg(err instanceof Error ? err.message : 'Yükleme başarısız')
+    },
+  })
+
+  function onDrop(e: React.DragEvent) {
     e.preventDefault()
-    const updated = await apiPatch<Profile>('/api/v1/profiles/me/onboarding', {
-      capacity_score: Number(capacity),
-      bio,
-      onboarding_completed: true,
-    })
-    setProfile(updated)
-    setMessage('Profil güncellendi.')
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) uploadMutation.mutate(file)
   }
 
-  async function onUpload(file: File) {
-    const form = new FormData()
-    form.append('file', file)
-    const result = await apiPostForm<{
-      competencies: Record<string, unknown>
-      fallback_required: boolean
-    }>('/api/v1/profiles/me/linkedin', form)
-    setFallbackHint(result.fallback_required)
-    setProfile((p) =>
-      p ? { ...p, competencies: result.competencies } : p,
-    )
-    setMessage(
-      result.fallback_required
-        ? 'PDF okunamadı — sohbette eksik bilgileri tamamla.'
-        : 'Yetkinlikler çıkarıldı.',
-    )
+  if (isLoading) {
+    return <p className="p-6 text-sm text-equa-muted">Yükleniyor…</p>
   }
 
   if (error) {
     return (
       <div className="p-6">
-        <p className="text-sm text-red-700">{error}</p>
-        <Link to="/login" className="mt-2 inline-block text-equa-accent underline">
-          Giriş yap
-        </Link>
+        <p className="text-sm text-red-300" role="alert">
+          {error instanceof Error ? error.message : 'Hata'}
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-3 text-sm font-medium text-equa-primary underline"
+        >
+          Yeniden dene
+        </button>
       </div>
     )
   }
 
-  if (!profile) {
-    return <p className="p-6 text-sm text-equa-muted">Yükleniyor…</p>
-  }
+  if (!profile) return null
+
+  const chips = skillChips(profile.competencies)
+  const capacity = profile.capacity_score ?? 0
+  const history = stats?.capacity_history ?? []
+  const maxScore = Math.max(100, ...history.map((h) => h.score), capacity)
+  const pathPoints = history.length
+    ? history
+        .map((h, i) => {
+          const x = (i / Math.max(1, history.length - 1)) * 280 + 10
+          const y = 90 - (h.score / maxScore) * 70
+          return `${x},${y}`
+        })
+        .join(' ')
+    : ''
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="font-display text-lg font-semibold">Profil</h1>
-      <p className="mt-1 text-sm text-equa-muted">
-        Onboarding: {profile.onboarding_completed ? 'tamam' : 'eksik'}
-      </p>
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 lg:px-8">
+      <Card className="relative overflow-hidden p-0">
+        <div className="h-24 bg-gradient-to-r from-equa-primary-container via-equa-surface to-equa-tertiary/20" />
+        <div className="flex flex-col items-start gap-4 px-6 pb-6 sm:flex-row sm:items-end">
+          <Avatar
+            alt={user?.email ?? 'Öğrenci'}
+            fallback={(user?.email ?? 'Ö').slice(0, 1).toUpperCase()}
+            size="lg"
+            className="-mt-10 border-4 border-equa-bg"
+          />
+          <div className="flex-1">
+            <h1 className="font-display text-xl font-bold text-equa-ink">
+              {user?.email ?? 'Profil'}
+            </h1>
+            <p className="mt-1 flex items-center gap-1 text-sm text-equa-muted">
+              <School size={14} aria-hidden />
+              Onboarding: {profile.onboarding_completed ? 'tamam' : 'eksik'}
+            </p>
+          </div>
+        </div>
+      </Card>
 
-      <form onSubmit={saveOnboarding} className="mt-6 space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Toplam Check-in"
+          value={stats?.total_checkins ?? '—'}
+        />
+        <StatCard
+          label="Tamamlanan Görev"
+          value={stats?.completed_tasks ?? '—'}
+        />
+        <StatCard
+          label="Hafta Serisi"
+          value={
+            stats?.streak_weeks != null ? `${stats.streak_weeks} Hafta` : '—'
+          }
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="p-6 lg:col-span-2">
+          <h2 className="font-display text-base font-bold text-equa-ink">
+            Kapasite Skoru Geçmişi
+          </h2>
+          <div className="mt-4">
+            <p className="text-sm font-medium text-equa-ink">Kapasite</p>
+            <div
+              className="mt-2"
+              role="meter"
+              aria-valuenow={capacity}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Kapasite skoru"
+            >
+              <ProgressBar value={capacity} />
+            </div>
+            <p className="mt-1 text-xs text-equa-muted">{capacity}/100</p>
+          </div>
+          {pathPoints ? (
+            <svg
+              viewBox="0 0 300 100"
+              className="mt-4 h-28 w-full"
+              aria-hidden
+            >
+              <polyline
+                fill="none"
+                stroke="url(#capGrad)"
+                strokeWidth="3"
+                points={pathPoints}
+              />
+              <defs>
+                <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#cfbcff" />
+                  <stop offset="100%" stopColor="#e7c365" />
+                </linearGradient>
+              </defs>
+            </svg>
+          ) : (
+            <p className="mt-4 text-sm text-equa-muted">
+              Kapasite geçmişi henüz yok — kaydettikçe grafik oluşur.
+            </p>
+          )}
+        </Card>
+
+        <Card className="space-y-4 p-6">
+          <h2 className="font-display text-base font-bold text-equa-ink">
+            Tercihler
+          </h2>
+          <Toggle
+            label="Email Bildirimleri"
+            checked={emailNotif}
+            onChange={setEmailNotif}
+          />
+          <Toggle
+            label="Yeni Görev Uyarıları"
+            checked={taskNotif}
+            onChange={setTaskNotif}
+          />
+          <Button
+            variant="danger"
+            className="w-full"
+            onClick={() => {
+              clearAuth()
+              window.location.href = '/login'
+            }}
+          >
+            Çıkış Yap
+          </Button>
+        </Card>
+      </div>
+
+      <form
+        onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
+        className="space-y-4"
+      >
         <div>
-          <label htmlFor="capacity" className="text-sm font-medium">
+          <label htmlFor="capacity" className="text-sm font-medium text-equa-ink">
             Kapasite skoru (0–100)
           </label>
-          <input
+          <Input
             id="capacity"
             type="number"
             min={0}
             max={100}
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-equa-line bg-white/80 px-3 py-2.5 text-sm"
+            className="mt-1"
+            {...form.register('capacity', { valueAsNumber: true })}
           />
+          {form.formState.errors.capacity ? (
+            <p className="mt-1 text-sm text-red-300" role="alert">
+              {form.formState.errors.capacity.message}
+            </p>
+          ) : null}
         </div>
         <div>
-          <label htmlFor="bio" className="text-sm font-medium">
+          <label htmlFor="bio" className="text-sm font-medium text-equa-ink">
             Kısa bio
           </label>
           <textarea
             id="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
             rows={3}
-            className="mt-1 w-full rounded-xl border border-equa-line bg-white/80 px-3 py-2.5 text-sm"
+            {...form.register('bio')}
+            className="mt-1 w-full rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2.5 text-sm text-equa-ink focus:border-equa-primary focus:outline-none focus:ring-2 focus:ring-equa-primary/30"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded-xl bg-equa-accent px-4 py-2.5 text-sm font-medium text-white"
-        >
-          Kaydet
-        </button>
-      </form>
-
-      <div className="mt-8">
-        <h2 className="font-display text-base font-semibold">LinkedIn PDF</h2>
-        <input
-          type="file"
-          accept=".pdf,.txt"
-          className="mt-2 block text-sm"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void onUpload(file)
-          }}
-        />
-        {fallbackHint ? (
-          <p className="mt-2 text-sm text-amber-800">
-            Chat fallback: sohbette yetkinliklerini anlat.
+        <Button type="submit" disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? 'Kaydediliyor…' : 'Kaydet'}
+        </Button>
+        {saveMutation.isSuccess ? (
+          <p className="text-sm text-equa-primary">Profil güncellendi.</p>
+        ) : null}
+        {saveMutation.isError ? (
+          <p className="text-sm text-red-300" role="alert">
+            Kayıt başarısız.
           </p>
         ) : null}
-        {profile.competencies ? (
-          <pre className="mt-3 overflow-auto rounded-xl bg-white/70 p-3 text-xs">
-            {JSON.stringify(profile.competencies, null, 2)}
-          </pre>
+      </form>
+
+      <div>
+        <h2 className="font-display text-base font-semibold text-equa-ink">
+          LinkedIn PDF
+        </h2>
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          className={[
+            'mt-3 rounded-2xl border border-dashed px-4 py-8 text-center transition-colors',
+            dragOver
+              ? 'border-equa-primary bg-equa-accent-soft'
+              : 'border-equa-line/40 bg-equa-surface/40',
+          ].join(' ')}
+        >
+          <p className="text-sm text-equa-muted">
+            PDF’yi buraya bırak veya seç (max 10 MB)
+          </p>
+          <Button
+            variant="ghost"
+            className="mt-3"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadMutation.isPending}
+          >
+            {uploadMutation.isPending ? 'Yükleniyor…' : 'Dosya seç'}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.txt,application/pdf,text/plain"
+            aria-label="LinkedIn PDF dosyası"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) uploadMutation.mutate(file)
+            }}
+          />
+        </div>
+
+        {uploadMsg ? (
+          <p className="mt-2 text-sm text-equa-ink" role="status">
+            {uploadMsg}
+          </p>
+        ) : null}
+
+        {fallbackHint ? (
+          <button
+            type="button"
+            className="mt-3 text-sm font-medium text-equa-primary underline"
+            onClick={() =>
+              navigate('/chat', {
+                state: {
+                  prefill:
+                    'LinkedIn PDF’m okunamadı. Yetkinliklerimi ve deneyimimi kısaca anlatayım:',
+                },
+              })
+            }
+          >
+            Sohbette eksik alanları tamamla
+          </button>
+        ) : null}
+
+        {chips.length > 0 ? (
+          <ul className="mt-4 flex flex-wrap gap-2" aria-label="Yetkinlikler">
+            {chips.map((skill) => (
+              <li
+                key={skill}
+                className="rounded-full bg-equa-accent-soft px-2.5 py-1 text-xs font-medium text-equa-primary"
+              >
+                {skill}
+              </li>
+            ))}
+          </ul>
         ) : null}
       </div>
-
-      {message ? <p className="mt-4 text-sm text-equa-accent">{message}</p> : null}
     </div>
   )
 }

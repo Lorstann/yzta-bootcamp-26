@@ -5,7 +5,9 @@ B8: Tenant ORM modeli — tenants tablosunun Python karşılığı.
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Boolean, String, TIMESTAMP, text
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Numeric, String, TIMESTAMP, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -23,6 +25,9 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
+    revenue_per_student: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), server_default=text("5000"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False
     )

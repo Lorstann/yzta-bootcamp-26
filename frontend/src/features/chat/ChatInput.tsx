@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react'
+import { Send } from 'lucide-react'
+import { Button } from '@/components/ui'
 
 type ChatInputProps = {
   disabled?: boolean
@@ -19,7 +21,7 @@ export function ChatInput({ disabled = false, onSend }: ChatInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2"
+      className="flex items-center gap-3 rounded-xl border border-equa-line/40 bg-[#0A0A14] px-3 py-2 shadow-inner focus-within:border-equa-primary"
       data-testid="chat-input-form"
     >
       <label htmlFor="chat-message" className="sr-only">
@@ -37,16 +39,18 @@ export function ChatInput({ disabled = false, onSend }: ChatInputProps) {
             handleSubmit(e)
           }
         }}
-        placeholder="Mesaj yaz…"
-        className="min-h-[44px] max-h-32 flex-1 resize-none rounded-xl border border-equa-line bg-white/80 px-3 py-2.5 text-sm text-equa-ink placeholder:text-equa-muted focus:border-equa-accent focus:outline-none focus:ring-2 focus:ring-equa-accent/30 disabled:opacity-60"
+        placeholder="AI Koçuna mesaj yaz…"
+        className="min-h-[44px] max-h-32 flex-1 resize-none border-none bg-transparent px-2 py-2 text-sm text-equa-ink placeholder:text-equa-outline focus:outline-none focus:ring-0 disabled:opacity-60"
       />
-      <button
+      <Button
         type="submit"
+        variant="primary"
         disabled={disabled || !value.trim()}
-        className="shrink-0 rounded-xl bg-equa-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="!min-h-10 !rounded-lg !px-3 !py-2"
       >
+        <Send size={18} aria-hidden />
         Gönder
-      </button>
+      </Button>
     </form>
   )
 }

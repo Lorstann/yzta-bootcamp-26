@@ -8,12 +8,11 @@ API key yoksa geliştirme için mock streaming döner.
 import asyncio
 from collections.abc import AsyncIterator
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
+from backend.config import settings
 from backend.domain.errors.app_error import AppError
-from backend.services.llm.provider import get_llm_settings
+from backend.services.llm.provider import build_chat_llm, get_llm_settings
 from backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -41,7 +40,7 @@ async def stream_llm_response(
     llm_settings = get_llm_settings()
 
     logger.info(
-        "LLM streaming başlatılıyor | provider=%s model=%s has_api_key=%s",
+        "LLM streaming başlatılıyor | provider=%s model=%s has_key=%s",
         llm_settings.provider,
         llm_settings.model,
         bool(llm_settings.api_key),
@@ -59,24 +58,7 @@ async def stream_llm_response(
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=message))
 
-        if llm_settings.provider == "openai":
-            llm = ChatOpenAI(
-                api_key=llm_settings.api_key,
-                model=llm_settings.model,
-                streaming=True,
-            )
-        elif llm_settings.provider == "anthropic":
-            llm = ChatAnthropic(
-                api_key=llm_settings.api_key,
-                model_name=llm_settings.model,
-                streaming=True,
-            )
-        else:
-            raise AppError(
-                "Bedrock streaming henüz desteklenmiyor. LLM_PROVIDER=openai veya anthropic kullanın.",
-                code="LLM_PROVIDER_UNSUPPORTED",
-                status_code=501,
-            )
+        llm = build_chat_llm(streaming=True)
 
         async for chunk in llm.astream(messages):
             text = _extract_chunk_text(chunk.content)
@@ -88,11 +70,47 @@ async def stream_llm_response(
     except AppError:
         raise
     except Exception as err:
+        err_text = str(err)
+        is_quota = _is_quota_error(err_text)
+        is_model_gone = _is_model_unavailable(err_text)
         logger.error(
-            "LLM streaming başarısız | provider=%s err=%s",
+            "LLM streaming başarısız | provider=%s quota=%s model_gone=%s err=%s",
             llm_settings.provider,
+            is_quota,
+            is_model_gone,
             err,
         )
+
+        # Development: keep demo usable when Gemini quota/model fails.
+        if (is_quota or is_model_gone) and settings.app_env.lower() == "development":
+            logger.warning(
+                "LLM kullanılamıyor — development mock streaming'e düşülüyor"
+            )
+            async for chunk in _mock_stream(
+                message,
+                quota_fallback=is_quota,
+                model_fallback=is_model_gone,
+            ):
+                yield chunk
+            return
+
+        if is_quota:
+            raise AppError(
+                "AI kotası doldu. Birkaç dakika sonra tekrar dene "
+                "veya .env içinde LLM_MODEL değerini değiştir "
+                "(ör. gemini-2.5-flash-lite).",
+                code="LLM_QUOTA_EXCEEDED",
+                status_code=429,
+            ) from err
+
+        if is_model_gone:
+            raise AppError(
+                "Seçili AI modeli bu API anahtarı için kullanılamıyor. "
+                ".env içinde LLM_MODEL=gemini-2.5-flash-lite dene.",
+                code="LLM_MODEL_UNAVAILABLE",
+                status_code=503,
+            ) from err
+
         raise AppError(
             "AI servisi şu an yanıt veremiyor. Lütfen daha sonra tekrar deneyin.",
             code="LLM_UNAVAILABLE",
@@ -100,10 +118,56 @@ async def stream_llm_response(
         ) from err
 
 
-async def _mock_stream(message: str) -> AsyncIterator[str]:
+def _is_quota_error(err_text: str) -> bool:
+    lowered = err_text.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "429",
+            "resource_exhausted",
+            "quota",
+            "rate limit",
+            "rate_limit",
+        )
+    )
+
+
+def _is_model_unavailable(err_text: str) -> bool:
+    lowered = err_text.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "404",
+            "not_found",
+            "no longer available",
+            "is not found",
+            "not supported",
+        )
+    )
+
+
+async def _mock_stream(
+    message: str,
+    *,
+    quota_fallback: bool = False,
+    model_fallback: bool = False,
+) -> AsyncIterator[str]:
     """API key olmadan local geliştirme için kelime kelime mock yanıt."""
     preview = message.strip()[:40] or "..."
-    response = f"{MOCK_RESPONSE} (mock — mesajın: {preview})"
+    if quota_fallback:
+        prefix = "Kota geçici olarak doldu; demo modundayım. "
+    elif model_fallback:
+        prefix = "Seçili model şu an API'de yok; demo modundayım. "
+    else:
+        prefix = ""
+    response = (
+        f"{prefix}{MOCK_RESPONSE} "
+        f"[GOREVLER]\n"
+        f"- Bugün 20 dk müfredat tekrarı yap\n"
+        f"- Kısa bir not al ve yarın kontrol et\n"
+        f"[/GOREVLER] "
+        f"(mock — mesajın: {preview})"
+    )
     for word in response.split():
         yield word + " "
         await asyncio.sleep(0.03)

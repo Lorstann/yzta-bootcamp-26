@@ -114,6 +114,46 @@ class CheckinRepository(BaseRepository[CheckinSession]):
         result = await self.session.execute(stmt)
         return [s.summary for s in result.scalars().all() if s.summary]
 
+    async def list_history(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        limit: int = 26,
+    ) -> list[CheckinSession]:
+        stmt = (
+            select(CheckinSession)
+            .options(selectinload(CheckinSession.weekly_tasks))
+            .where(
+                CheckinSession.tenant_id == tenant_id,
+                CheckinSession.user_id == user_id,
+            )
+            .order_by(CheckinSession.week_start.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def set_mood(
+        self, session: CheckinSession, mood_score: int
+    ) -> CheckinSession:
+        session.mood_score = mood_score
+        session.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return session
+
+    async def count_for_user(
+        self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
+    ) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count()).select_from(CheckinSession).where(
+            CheckinSession.tenant_id == tenant_id,
+            CheckinSession.user_id == user_id,
+        )
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
+
 
 class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
     model = WeeklyTask
@@ -154,9 +194,14 @@ class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
     async def list_for_user(
         self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
     ) -> list[WeeklyTask]:
-        stmt = select(WeeklyTask).where(
-            WeeklyTask.tenant_id == tenant_id,
-            WeeklyTask.user_id == user_id,
+        stmt = (
+            select(WeeklyTask)
+            .options(selectinload(WeeklyTask.checkin_session))
+            .where(
+                WeeklyTask.tenant_id == tenant_id,
+                WeeklyTask.user_id == user_id,
+            )
+            .order_by(WeeklyTask.created_at.desc())
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
@@ -172,12 +217,15 @@ class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
     async def suspend_incomplete(
         self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
     ) -> int:
-        """Downscale: mark incomplete tasks with [ASKIDA] prefix."""
+        """Downscale: mark incomplete open tasks as suspended (AC3)."""
         tasks = await self.list_for_user(tenant_id=tenant_id, user_id=user_id)
         count = 0
         for task in tasks:
-            if not task.is_completed and not task.title.startswith("[ASKIDA]"):
-                task.title = f"[ASKIDA] {task.title}"
+            if not task.is_completed and getattr(task, "status", "active") != "suspended":
+                # Strip legacy prefix if present
+                if task.title.startswith("[ASKIDA] "):
+                    task.title = task.title[len("[ASKIDA] ") :]
+                task.status = "suspended"
                 count += 1
         await self.session.flush()
         return count

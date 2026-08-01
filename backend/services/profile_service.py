@@ -77,10 +77,84 @@ async def update_onboarding(
         profile.onboarding_completed = onboarding_completed
         await db.flush()
 
+    from backend.repositories.capacity_repo import CapacitySnapshotRepository
+
+    snap_repo = CapacitySnapshotRepository(db)
+    await snap_repo.record(
+        tenant_id=profile.tenant_id,
+        user_id=user_id,
+        score=capacity_score,
+    )
+
     logger.info(
         "Onboarding updated | user_id=%s capacity=%s", user_id, capacity_score
     )
     return to_public_profile(profile)
+
+
+def _compute_streak(week_starts: list) -> int:
+    """Count consecutive ISO weeks ending at the most recent week_start."""
+    if not week_starts:
+        return 0
+    from datetime import timedelta
+
+    sorted_weeks = sorted(set(week_starts), reverse=True)
+    streak = 1
+    for i in range(len(sorted_weeks) - 1):
+        expected = sorted_weeks[i] - timedelta(days=7)
+        if sorted_weeks[i + 1] == expected:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+async def get_profile_stats(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> dict[str, Any]:
+    from backend.repositories.capacity_repo import CapacitySnapshotRepository
+    from backend.repositories.checkin_repo import CheckinRepository, WeeklyTaskRepository
+
+    checkin_repo = CheckinRepository(db)
+    task_repo = WeeklyTaskRepository(db)
+    snap_repo = CapacitySnapshotRepository(db)
+
+    total_checkins = await checkin_repo.count_for_user(
+        tenant_id=tenant_id, user_id=user_id
+    )
+    history = await checkin_repo.list_history(
+        tenant_id=tenant_id, user_id=user_id, limit=52
+    )
+    streak = _compute_streak([s.week_start for s in history])
+    tasks = await task_repo.list_for_user(tenant_id=tenant_id, user_id=user_id)
+    completed_tasks = sum(1 for t in tasks if t.is_completed)
+    snapshots = await snap_repo.list_for_user(
+        tenant_id=tenant_id, user_id=user_id, limit=26
+    )
+    capacity_history = [
+        {
+            "score": float(s.score),
+            "recorded_at": s.recorded_at.isoformat(),
+        }
+        for s in snapshots
+    ]
+
+    logger.info(
+        "Profile stats | user_id=%s checkins=%s streak=%s",
+        user_id,
+        total_checkins,
+        streak,
+    )
+    return {
+        "total_checkins": total_checkins,
+        "streak_weeks": streak,
+        "completed_tasks": completed_tasks,
+        "open_tasks": sum(1 for t in tasks if not t.is_completed),
+        "capacity_history": capacity_history,
+    }
 
 
 def _extract_text_from_pdf(data: bytes) -> str:
@@ -120,6 +194,33 @@ def _heuristic_competencies(text: str) -> dict[str, Any]:
     }
 
 
+async def _extract_competencies_llm(text: str) -> dict[str, Any]:
+    """LinkedIn metninden yapılandırılmış yetkinlik JSON'u (Gemini / OpenAI / Anthropic)."""
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from backend.services.llm.provider import build_chat_llm
+
+    prompt = (
+        "Extract competencies as JSON with keys skills (string[]), "
+        "summary (string), experience_years (number|null) from this LinkedIn text. "
+        "Return ONLY valid JSON, no markdown.\n\n"
+        f"{text[:6000]}"
+    )
+    llm = build_chat_llm(streaming=False)
+    response = await llm.ainvoke(
+        [
+            SystemMessage(content="You extract structured competency JSON from resumes."),
+            HumanMessage(content=prompt),
+        ]
+    )
+    raw = response.content if isinstance(response.content, str) else str(response.content)
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw or "{}")
+
+
 async def extract_linkedin_competencies(
     db: AsyncSession,
     *,
@@ -149,20 +250,7 @@ async def extract_linkedin_competencies(
         source = "fallback"
     elif settings.llm_api_key:
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=settings.llm_api_key)
-            prompt = (
-                "Extract competencies as JSON with keys skills (string[]), "
-                "summary (string), experience_years (number|null) from this LinkedIn text:\n\n"
-                f"{text[:6000]}"
-            )
-            resp = await client.chat.completions.create(
-                model=settings.llm_model,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-            )
-            competencies = json.loads(resp.choices[0].message.content or "{}")
+            competencies = await _extract_competencies_llm(text)
             source = "llm"
         except Exception as exc:
             logger.error("LLM competency extract failed: %s", exc)

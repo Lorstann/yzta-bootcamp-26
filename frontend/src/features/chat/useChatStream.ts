@@ -1,36 +1,39 @@
 import { useCallback, useRef, useState } from 'react'
 import { streamChat } from '@/shared/api/chat'
 import { ApiClientError } from '@/shared/api/envelope'
-import { getStoredUser } from '@/shared/auth/storage'
-import type { ChatMessage, ChatStatus } from './types'
-
-const DEMO_TENANT_ID = '11111111-1111-1111-1111-111111111111'
-const DEMO_SESSION_ID = '00000000-0000-4000-8000-000000000010'
+import type { ChatMessage, ChatStatus, GuardrailInfo } from './types'
 
 function createId(): string {
   return crypto.randomUUID()
 }
 
-export function useChatStream(sessionId?: string) {
+/**
+ * Streaming chat hook. `sessionId` must be a real check-in session UUID
+ * obtained from GET /api/v1/checkins/current.
+ */
+export function useChatStream(sessionId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [weeklyTasks, setWeeklyTasks] = useState<string[] | null>(null)
+  const [guardrail, setGuardrail] = useState<GuardrailInfo | null>(null)
   const lastUserMessageRef = useRef<string>('')
 
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
       if (!trimmed || status === 'streaming') return
+      if (!sessionId) {
+        setError('Check-in oturumu henüz hazır değil. Lütfen sayfayı yenile.')
+        setStatus('error')
+        return
+      }
 
       lastUserMessageRef.current = trimmed
       setError(null)
       setWeeklyTasks(null)
+      setGuardrail(null)
       setStatus('streaming')
-
-      const user = getStoredUser()
-      const tenantId = user?.tenant_id ?? DEMO_TENANT_ID
-      const sid = sessionId ?? DEMO_SESSION_ID
 
       const userMsg: ChatMessage = {
         id: createId(),
@@ -49,8 +52,7 @@ export function useChatStream(sessionId?: string) {
 
       try {
         for await (const event of streamChat({
-          tenant_id: tenantId,
-          session_id: sid,
+          session_id: sessionId,
           message: trimmed,
         })) {
           if (event.type === 'chunk') {
@@ -69,6 +71,12 @@ export function useChatStream(sessionId?: string) {
             )
             if (event.weekly_tasks?.length) {
               setWeeklyTasks(event.weekly_tasks)
+            }
+            if (event.guardrail_triggered) {
+              setGuardrail({
+                triggered: true,
+                category: event.guardrail_category,
+              })
             }
             setStatus('idle')
           } else if (event.type === 'error') {
@@ -119,12 +127,18 @@ export function useChatStream(sessionId?: string) {
     void sendMessage(last)
   }, [sendMessage])
 
+  const hydrateMessages = useCallback((seed: ChatMessage[]) => {
+    setMessages(seed)
+  }, [])
+
   return {
     messages,
     status,
     error,
     weeklyTasks,
+    guardrail,
     sendMessage,
     retry,
+    hydrateMessages,
   }
 }

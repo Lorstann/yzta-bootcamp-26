@@ -1,9 +1,25 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { beforeEach } from 'vitest'
 import { ChatPage } from '@/pages/ChatPage'
+import { setAuth } from '@/shared/auth/storage'
+
+function seedAuth() {
+  setAuth('mock-token', {
+    id: '11111111-1111-1111-1111-111111111101',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    email: 'student@example.com',
+    full_name: 'Test Student',
+    role: 'student',
+  })
+}
 
 describe('ChatPage', () => {
+  beforeEach(() => {
+    seedAuth()
+  })
+
   it('shows empty state and sends a message with streaming reply', async () => {
     const user = userEvent.setup()
     render(
@@ -12,7 +28,7 @@ describe('ChatPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Mesaj yazarak başla')).toBeInTheDocument()
+    expect(await screen.findByText('Mesaj yazarak başla')).toBeInTheDocument()
 
     const input = screen.getByLabelText('Mesajın')
     await user.type(input, 'Bu hafta iyiyim')
@@ -35,6 +51,8 @@ describe('ChatPage', () => {
         <ChatPage />
       </MemoryRouter>,
     )
+
+    expect(await screen.findByLabelText('Mesajın')).toBeInTheDocument()
 
     const input = screen.getByLabelText('Mesajın')
     await user.type(input, 'error')

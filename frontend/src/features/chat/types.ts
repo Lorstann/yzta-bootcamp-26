@@ -8,3 +8,8 @@ export type ChatMessage = {
 }
 
 export type ChatStatus = 'idle' | 'streaming' | 'error'
+
+export type GuardrailInfo = {
+  triggered: boolean
+  category: 'critical' | 'dropout' | 'depression' | null
+}
