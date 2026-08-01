@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.dependencies.auth import CurrentUser
 from backend.domain.errors.app_error import AppError
 from backend.domain.schemas.checkin import MoodUpdateRequest, TaskCompleteRequest
-from backend.repositories.checkin_repo import WeeklyTaskRepository
+from backend.repositories.checkin_repo import DailyTaskRepository
 from backend.services import checkin_service
 from backend.utils.response import ok
 
@@ -27,7 +27,7 @@ async def complete_task(
     task_id: uuid.UUID,
     body: TaskCompleteRequest,
 ):
-    repo = WeeklyTaskRepository(db)
+    repo = DailyTaskRepository(db)
     task = await repo.get_by_id(task_id)
     if task is None or task.user_id != user.id:
         raise AppError("Task not found", code="NOT_FOUND", status_code=404)
@@ -55,7 +55,7 @@ async def list_tasks(db: AsyncSession, user: CurrentUser):
     return ok(data={"tasks": tasks})
 
 
-async def list_history(db: AsyncSession, user: CurrentUser, limit: int = 26):
+async def list_history(db: AsyncSession, user: CurrentUser, limit: int = 30):
     rows = await checkin_service.list_checkin_history(
         db, tenant_id=user.tenant_id, user_id=user.id, limit=limit
     )

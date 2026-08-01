@@ -1,6 +1,7 @@
 venv/
 .venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 .env
 postgres_data/
@@ -8,4 +9,6 @@ postgres_data/
 .pytest_cache/
 frontend/test-results/
 frontend/playwright-report/
+frontend/dist/
+frontend/node_modules/.vite/
 stitch_equa_ai_coaching_platform/

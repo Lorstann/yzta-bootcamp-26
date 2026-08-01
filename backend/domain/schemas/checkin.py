@@ -18,7 +18,7 @@ class CheckinMessage(BaseModel):
     content: str
 
 
-class WeeklyTaskOut(BaseModel):
+class DailyTaskOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: UUID
@@ -29,20 +29,30 @@ class WeeklyTaskOut(BaseModel):
     status: Literal["active", "suspended"] = "active"
     due_date: Optional[date] = None
     created_at: Optional[datetime] = None
-    week_start: Optional[date] = None
+    checkin_date: Optional[date] = None
     checkin_session_id: Optional[UUID] = None
+
+
+# Backwards-compatible alias
+WeeklyTaskOut = DailyTaskOut
 
 
 class CheckinSessionOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: UUID
-    week_start: date
+    checkin_date: date
     status: str
     summary: Optional[str] = None
     mood_score: Optional[int] = None
+    energy_level: Optional[int] = None
+    motivation_level: Optional[int] = None
+    workload_level: Optional[str] = None
+    main_blocker: Optional[str] = None
+    stage: Optional[str] = "opening"
+    turn_count: int = 0
     messages: list[dict[str, Any]] = Field(default_factory=list)
-    weekly_tasks: list[WeeklyTaskOut] = Field(default_factory=list)
+    daily_tasks: list[DailyTaskOut] = Field(default_factory=list)
 
 
 class TaskCompleteRequest(BaseModel):
@@ -61,7 +71,7 @@ class CheckinHistoryItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: UUID
-    week_start: date
+    checkin_date: date
     status: str
     summary: Optional[str] = None
     mood_score: Optional[int] = None
@@ -73,7 +83,7 @@ class ProfileStatsOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     total_checkins: int
-    streak_weeks: int
+    streak_days: int
     completed_tasks: int
     open_tasks: int = 0
     capacity_history: list[dict[str, Any]] = Field(default_factory=list)

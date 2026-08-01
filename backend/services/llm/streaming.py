@@ -8,7 +8,9 @@ API key yoksa geliştirme için mock streaming döner.
 import asyncio
 from collections.abc import AsyncIterator
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from typing import Any
+
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from backend.config import settings
 from backend.domain.errors.app_error import AppError
@@ -19,20 +21,47 @@ logger = get_logger(__name__)
 
 MOCK_RESPONSE = (
     "Merhaba! Equa check-in asistanıyım. "
-    "Bu hafta nasıl hissediyorsun? Kısa bir özet paylaşabilir misin?"
+    "Bugün nasıl hissediyorsun? Kısa bir özet paylaşabilir misin?"
 )
+
+
+def build_llm_messages(
+    message: str,
+    system_prompt: str | None = None,
+    history: list[dict[str, Any]] | None = None,
+) -> list[BaseMessage]:
+    """
+    Build LangChain message list: optional system + prior turns + current human.
+    history items: {"role": "user"|"assistant", "content": str}
+    """
+    messages: list[BaseMessage] = []
+    if system_prompt:
+        messages.append(SystemMessage(content=system_prompt))
+    for turn in history or []:
+        role = (turn.get("role") or "").lower()
+        content = (turn.get("content") or "").strip()
+        if not content:
+            continue
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            messages.append(AIMessage(content=content))
+    messages.append(HumanMessage(content=message))
+    return messages
 
 
 async def stream_llm_response(
     message: str,
     system_prompt: str | None = None,
+    history: list[dict[str, Any]] | None = None,
 ) -> AsyncIterator[str]:
     """
     Kullanıcı mesajına karşılık LLM'den gelen token chunk'larını yield eder.
 
     Args:
         message: Öğrencinin chat mesajı.
-        system_prompt: Opsiyonel sistem talimatı (check-in akışı için A6'da genişletilecek).
+        system_prompt: Opsiyonel sistem talimatı.
+        history: Önceki turlar (user/assistant). Varsayılan None — institution agent etkilenmez.
 
     Yields:
         Her iterasyonda bir metin parçası (token/chunk).
@@ -40,10 +69,11 @@ async def stream_llm_response(
     llm_settings = get_llm_settings()
 
     logger.info(
-        "LLM streaming başlatılıyor | provider=%s model=%s has_key=%s",
+        "LLM streaming başlatılıyor | provider=%s model=%s has_key=%s history_turns=%s",
         llm_settings.provider,
         llm_settings.model,
         bool(llm_settings.api_key),
+        len(history or []),
     )
 
     if not llm_settings.api_key:
@@ -53,10 +83,7 @@ async def stream_llm_response(
         return
 
     try:
-        messages: list[SystemMessage | HumanMessage] = []
-        if system_prompt:
-            messages.append(SystemMessage(content=system_prompt))
-        messages.append(HumanMessage(content=message))
+        messages = build_llm_messages(message, system_prompt, history)
 
         llm = build_chat_llm(streaming=True)
 
@@ -98,7 +125,7 @@ async def stream_llm_response(
             raise AppError(
                 "AI kotası doldu. Birkaç dakika sonra tekrar dene "
                 "veya .env içinde LLM_MODEL değerini değiştir "
-                "(ör. gemini-2.5-flash-lite).",
+                "(ör. gemini-3.5-flash-lite).",
                 code="LLM_QUOTA_EXCEEDED",
                 status_code=429,
             ) from err
@@ -106,7 +133,7 @@ async def stream_llm_response(
         if is_model_gone:
             raise AppError(
                 "Seçili AI modeli bu API anahtarı için kullanılamıyor. "
-                ".env içinde LLM_MODEL=gemini-2.5-flash-lite dene.",
+                ".env içinde LLM_MODEL=gemini-3.5-flash-lite dene.",
                 code="LLM_MODEL_UNAVAILABLE",
                 status_code=503,
             ) from err
@@ -161,7 +188,9 @@ async def _mock_stream(
     else:
         prefix = ""
     response = (
-        f"{prefix}{MOCK_RESPONSE} "
+        f"{prefix}Anladım, bugün biraz yorgun hissediyorsun gibi. "
+        f"En zorlayan konu neydi kısaca? "
+        f"[DURUM]{{\"enerji\":5,\"motivasyon\":4,\"engel\":null,\"yuk\":\"orta\",\"hazir\":false}}[/DURUM] "
         f"[GOREVLER]\n"
         f"- Bugün 20 dk müfredat tekrarı yap\n"
         f"- Kısa bir not al ve yarın kontrol et\n"

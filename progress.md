@@ -149,7 +149,11 @@
 
 **Son güncelleme:** 1 Ağustos 2026
 
-- **Stitch Dark Redesign:** Frontend Deep Space koyu glassmorphism temasına geçildi (Plus Jakarta Sans, lucide-react, `@theme` token’ları). Yeni route’lar: `/` Landing, `/dashboard`, `/tasks`, `/takvim`. Shell: glass sidebar + TopBar + mobil bottom nav. Backend: Alembic 008 (`capacity_snapshots` + `weekly_tasks.due_date`); `GET /tasks`, `GET /checkins/history`, `GET /profiles/me/stats`, `PATCH /checkins/current/mood`. OpenAPI + MSW + Vitest (16) + pytest dashboard stats yeşil.
+- **Check-in sohbet redesign:** LLM'e session history replay (loop kök nedeni); stage makinesi (`opening→explore→focus→closing`, MAX_TURNS=6); inline `[DURUM]` sinyal çıkarımı + `[GOREVLER]`/`[DURUM]` stream sanitizer; Alembic 010 (`energy_level`, `motivation_level`, `workload_level`, `main_blocker`, `stage`, `turn_count`); risk skoruna enerji/motivasyon ortalaması; dost/koç prompt (`build_checkin_prompt`); FE tamamlanma kartı + sinyal göstergesi. pytest 111, Vitest 19 yeşil.
+
+- **Günlük check-in + kurum deneyimi:** Haftalık → günlük geçiş (Alembic 009: `checkin_date`, `daily_tasks`); streak_days; gün pencereli risk; AI Canlı sohbet başlığında; MoodSelector; rol bazlı nav (öğrenci vs instructor/admin); kurum overview/usage/me/settings + metrics-only AI asistan (`POST /institution/assistant/stream`); route contract + role matrix testleri; zombie uvicorn 404 kök nedeni giderildi. pytest 86, Vitest 19 yeşil.
+
+- **Stitch Dark Redesign:** Frontend Deep Space koyu glassmorphism temasına geçildi (Plus Jakarta Sans, lucide-react, `@theme` token’ları). Yeni route’lar: `/` Landing, `/dashboard`, `/tasks`, `/takvim`. Shell: glass sidebar + TopBar + mobil bottom nav. Backend: Alembic 008 (`capacity_snapshots` + task due_date); `GET /tasks`, `GET /checkins/history`, `GET /profiles/me/stats`, `PATCH /checkins/current/mood`. OpenAPI + MSW + Vitest + pytest dashboard stats yeşil.
 
 - **MVP Hardening (P0–P2):** Chat zorunlu auth (tenant JWT’den); session sahipliği; öğrenci happy path (check-in session → chat → görev persist); frontend `RequireAuth` / `RequireRole`; register rolü student-only; guardrail UI; production JWT guard; OpenAPI 12 endpoint + bearerAuth; onboarding sihirbazı; PDF upload doğrulama + chip UX + fallback sohbet; `weekly_tasks.status` + tenant `revenue_per_student` (Alembic 007); kurum filtre/XAI/N+1; TanStack Query + RHF/Zod; UI primitives/motion/offline/install; RAG AC2 filter; logger redaction; pytest + Vitest + Playwright journey genişletmesi.
 - **Not:** LinkedIn PDF S3 yok — in-memory parse (MVP bilinci).

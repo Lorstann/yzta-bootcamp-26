@@ -4,7 +4,9 @@ import { CalendarPage } from '@/pages/CalendarPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { CheckinPage } from '@/pages/CheckinPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { InstitutionAssistantPage } from '@/pages/InstitutionAssistantPage'
 import { InstitutionPage } from '@/pages/InstitutionPage'
+import { InstitutionProfilePage } from '@/pages/InstitutionProfilePage'
 import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -16,13 +18,29 @@ import {
   RequireAuth,
 } from '@/shared/auth/RequireAuth'
 import { RequireRole } from '@/shared/auth/RequireRole'
-import { getAccessToken } from '@/shared/auth/storage'
+import { getAccessToken, getStoredUser } from '@/shared/auth/storage'
+
+function homePathForRole(role: string | undefined): string {
+  if (role === 'instructor' || role === 'admin') return '/institution'
+  return '/dashboard'
+}
 
 function LandingOrRedirect() {
   if (getAccessToken()) {
-    return <Navigate to="/dashboard" replace />
+    const user = getStoredUser()
+    return <Navigate to={homePathForRole(user?.role)} replace />
   }
   return <LandingPage />
+}
+
+function StudentRoute({ children }: { children: React.ReactNode }) {
+  return <RequireRole roles={['student']}>{children}</RequireRole>
+}
+
+function StaffRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireRole roles={['instructor', 'admin']}>{children}</RequireRole>
+  )
 }
 
 export default function App() {
@@ -52,18 +70,76 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="chat" element={<ChatPage />} />
-        <Route path="checkin" element={<CheckinPage />} />
-        <Route path="tasks" element={<TasksPage />} />
-        <Route path="takvim" element={<CalendarPage />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="dashboard"
+          element={
+            <StudentRoute>
+              <DashboardPage />
+            </StudentRoute>
+          }
+        />
+        <Route
+          path="chat"
+          element={
+            <StudentRoute>
+              <ChatPage />
+            </StudentRoute>
+          }
+        />
+        <Route
+          path="checkin"
+          element={
+            <StudentRoute>
+              <CheckinPage />
+            </StudentRoute>
+          }
+        />
+        <Route
+          path="tasks"
+          element={
+            <StudentRoute>
+              <TasksPage />
+            </StudentRoute>
+          }
+        />
+        <Route
+          path="takvim"
+          element={
+            <StudentRoute>
+              <CalendarPage />
+            </StudentRoute>
+          }
+        />
+        <Route
+          path="profile"
+          element={
+            <StudentRoute>
+              <ProfilePage />
+            </StudentRoute>
+          }
+        />
         <Route
           path="institution"
           element={
-            <RequireRole roles={['instructor', 'admin']} fallback="/dashboard">
+            <StaffRoute>
               <InstitutionPage />
-            </RequireRole>
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="institution/assistant"
+          element={
+            <StaffRoute>
+              <InstitutionAssistantPage />
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="institution/profile"
+          element={
+            <StaffRoute>
+              <InstitutionProfilePage />
+            </StaffRoute>
           }
         />
         <Route path="*" element={<NotFoundPage />} />

@@ -47,6 +47,8 @@ describe('InstitutionPage', () => {
 
     expect(await screen.findByText('Risk & müdahale')).toBeInTheDocument()
     expect(await screen.findByText('Ayşe Demir')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Asistan/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Profil/i })).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Risk'), 'red')
     expect(screen.getByText('Ayşe Demir')).toBeInTheDocument()
@@ -55,6 +57,30 @@ describe('InstitutionPage', () => {
     await user.click(screen.getByRole('button', { name: 'Neden kırmızı?' }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText(/davranışsal metrikler/i)).toBeInTheDocument()
+  })
+})
+
+describe('InstitutionProfilePage', () => {
+  beforeEach(() => {
+    setAuth('mock-token', {
+      id: '11111111-1111-1111-1111-111111111201',
+      tenant_id: '11111111-1111-1111-1111-111111111111',
+      email: 'coordinator@equa.dev',
+      full_name: 'Coord',
+      role: 'instructor',
+    })
+  })
+
+  it('shows staff me and usage metrics', async () => {
+    const { InstitutionProfilePage } = await import(
+      '@/pages/InstitutionProfilePage'
+    )
+    wrap(<InstitutionProfilePage />)
+
+    expect(await screen.findByText('Kurum Profili')).toBeInTheDocument()
+    expect(await screen.findByText('coordinator@equa.dev')).toBeInTheDocument()
+    expect(await screen.findByText(/Equa Demo/)).toBeInTheDocument()
+    expect(screen.getByText('Adoption (7g)')).toBeInTheDocument()
   })
 })
 
@@ -122,7 +148,7 @@ describe('TasksPage', () => {
   it('lists tasks from API', async () => {
     const { TasksPage } = await import('@/pages/TasksPage')
     wrap(<TasksPage />)
-    expect(await screen.findByText('Bu Haftanın Hedefleri')).toBeInTheDocument()
+    expect(await screen.findByText('Bugünün Hedefleri')).toBeInTheDocument()
     expect(await screen.findByText(/React Hooks/i)).toBeInTheDocument()
   })
 })

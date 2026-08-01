@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Sparkles } from 'lucide-react'
 import { apiGet, apiPatch } from '@/shared/api/client'
+import { ApiClientError } from '@/shared/api/envelope'
 import { queryKeys } from '@/shared/api/query-keys'
 import {
   Badge,
@@ -17,13 +18,30 @@ type Task = {
   description?: string | null
   is_completed: boolean
   status?: string
-  week_start?: string | null
+  checkin_date?: string | null
   due_date?: string | null
+}
+
+function tasksErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    const raw = error.message.trim()
+    if (!raw || /^not\s*found$/i.test(raw) || error.status === 404) {
+      return 'Bugünün görevleri bulunamadı. Lütfen tekrar dene.'
+    }
+    return raw
+  }
+  if (error instanceof Error && error.message) {
+    if (/^not\s*found$/i.test(error.message.trim())) {
+      return 'Bugünün görevleri bulunamadı. Lütfen tekrar dene.'
+    }
+    return error.message
+  }
+  return 'Görevler yüklenemedi. Lütfen tekrar dene.'
 }
 
 export function TasksPage() {
   const queryClient = useQueryClient()
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.tasks.all(),
     queryFn: () => apiGet<{ tasks: Task[] }>('/api/v1/tasks'),
   })
@@ -55,9 +73,18 @@ export function TasksPage() {
 
   if (error) {
     return (
-      <p className="p-6 text-sm text-red-300" role="alert">
-        {error instanceof Error ? error.message : 'Görevler yüklenemedi'}
-      </p>
+      <div className="p-6">
+        <p className="text-sm text-red-300" role="alert">
+          {tasksErrorMessage(error)}
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-3 text-sm font-medium text-equa-primary underline"
+        >
+          Yeniden dene
+        </button>
+      </div>
     )
   }
 
@@ -65,7 +92,7 @@ export function TasksPage() {
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 lg:px-8">
       <div>
         <h1 className="font-display text-2xl font-extrabold text-equa-ink lg:text-3xl">
-          Bu Haftanın Hedefleri
+          Bugünün Hedefleri
         </h1>
         <p className="mt-1 flex items-center gap-1 text-sm text-equa-muted">
           <Sparkles size={14} className="text-equa-tertiary" aria-hidden />
@@ -132,8 +159,8 @@ export function TasksPage() {
                       {task.status === 'suspended' ? (
                         <Badge tone="yellow">Askıda</Badge>
                       ) : null}
-                      {task.week_start ? (
-                        <Badge tone="neutral">Hafta: {task.week_start}</Badge>
+                      {task.checkin_date ? (
+                        <Badge tone="neutral">{task.checkin_date}</Badge>
                       ) : null}
                     </span>
                   </span>

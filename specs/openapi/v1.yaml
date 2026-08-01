@@ -122,7 +122,7 @@ paths:
                   SSE payload lines of the form `data: {json}\n\n`.
                   Event shapes:
                   - `{"type":"chunk","data":"..."}`
-                  - `{"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["..."]}`
+                  - `{"type":"done","guardrail_triggered":false,"guardrail_category":null,"daily_tasks":["..."]}`
                   - `{"type":"error","message":"..."}`
         '401':
           description: Unauthenticated
@@ -152,7 +152,7 @@ paths:
   /api/v1/checkins:
     post:
       tags: [checkins]
-      summary: Start or resume the current weekly check-in
+      summary: Start or resume the current daily check-in
       operationId: startCheckin
       security:
         - bearerAuth: []
@@ -173,7 +173,7 @@ paths:
   /api/v1/checkins/current:
     get:
       tags: [checkins]
-      summary: Get or start the current weekly check-in
+      summary: Get or start the current daily check-in
       operationId: getCurrentCheckin
       security:
         - bearerAuth: []
@@ -194,7 +194,7 @@ paths:
   /api/v1/checkins/history:
     get:
       tags: [checkins]
-      summary: List past check-in sessions
+      summary: List past daily check-in sessions
       operationId: listCheckinHistory
       security:
         - bearerAuth: []
@@ -204,8 +204,8 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 104
-            default: 26
+            maximum: 365
+            default: 30
       responses:
         '200':
           description: Check-in history
@@ -256,7 +256,7 @@ paths:
   /api/v1/tasks:
     get:
       tags: [checkins]
-      summary: List all weekly tasks for the current student
+      summary: List all daily tasks for the current student
       operationId: listTasks
       security:
         - bearerAuth: []
@@ -481,6 +481,216 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /api/v1/institution/overview:
+    get:
+      tags: [institution]
+      summary: Tenant overview metrics (staff only)
+      operationId: getInstitutionOverview
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/usage:
+    get:
+      tags: [institution]
+      summary: Adoption / usage metrics (staff only)
+      operationId: getInstitutionUsage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usage metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/me:
+    get:
+      tags: [institution]
+      summary: Staff profile + tenant info
+      operationId: getInstitutionMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Staff profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/settings:
+    patch:
+      tags: [institution]
+      summary: Update tenant settings (admin only)
+      operationId: patchInstitutionSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [revenue_per_student]
+              properties:
+                revenue_per_student:
+                  type: number
+                  exclusiveMinimum: 0
+                  maximum: 1000000
+      responses:
+        '200':
+          description: Updated tenant settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/students/{student_id}:
+    get:
+      tags: [institution]
+      summary: Student XAI detail — metrics only, never raw chat
+      operationId: getInstitutionStudent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Student risk detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/institution/assistant/stream:
+    post:
+      tags: [institution]
+      summary: Stream institution AI assistant (metrics-only context)
+      operationId: streamInstitutionAssistant
+      description: |
+        Staff-only SSE assistant. Context pack contains aggregate metrics and
+        XAI rationales only — never raw student chat messages.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -672,7 +882,7 @@ components:
           nullable: true
           type: string
           enum: [critical, dropout, depression]
-        weekly_tasks:
+        daily_tasks:
           nullable: true
           type: array
           maxItems: 3
@@ -698,7 +908,7 @@ components:
       discriminator:
         propertyName: type
 
-    WeeklyTaskOut:
+    DailyTaskOut:
       type: object
       additionalProperties: false
       required: [id, title, is_completed]
@@ -729,7 +939,7 @@ components:
           nullable: true
           type: string
           format: date-time
-        week_start:
+        checkin_date:
           nullable: true
           type: string
           format: date
@@ -741,12 +951,12 @@ components:
     CheckinSessionOut:
       type: object
       additionalProperties: false
-      required: [id, week_start, status, messages, weekly_tasks]
+      required: [id, checkin_date, status, messages, daily_tasks]
       properties:
         id:
           type: string
           format: uuid
-        week_start:
+        checkin_date:
           type: string
           format: date
         status:
@@ -763,10 +973,10 @@ components:
           type: array
           items:
             type: object
-        weekly_tasks:
+        daily_tasks:
           type: array
           items:
-            $ref: '#/components/schemas/WeeklyTaskOut'
+            $ref: '#/components/schemas/DailyTaskOut'
 
     CheckinSessionResponse:
       allOf:
@@ -789,12 +999,12 @@ components:
     CheckinHistoryItem:
       type: object
       additionalProperties: false
-      required: [id, week_start, status, task_count, completed_task_count]
+      required: [id, checkin_date, status, task_count, completed_task_count]
       properties:
         id:
           type: string
           format: uuid
-        week_start:
+        checkin_date:
           type: string
           format: date
         status:
@@ -834,7 +1044,7 @@ components:
                 tasks:
                   type: array
                   items:
-                    $ref: '#/components/schemas/WeeklyTaskOut'
+                    $ref: '#/components/schemas/DailyTaskOut'
 
     TaskCompleteRequest:
       type: object
@@ -856,11 +1066,11 @@ components:
     ProfileStatsOut:
       type: object
       additionalProperties: false
-      required: [total_checkins, streak_weeks, completed_tasks]
+      required: [total_checkins, streak_days, completed_tasks]
       properties:
         total_checkins:
           type: integer
-        streak_weeks:
+        streak_days:
           type: integer
         completed_tasks:
           type: integer

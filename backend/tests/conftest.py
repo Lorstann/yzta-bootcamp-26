@@ -58,7 +58,8 @@ async def db_session() -> AsyncSession:
             text(
                 """
                 TRUNCATE TABLE
-                  weekly_tasks,
+                  daily_tasks,
+                  capacity_snapshots,
                   checkin_sessions,
                   curriculum_chunks,
                   curricula,
@@ -81,7 +82,8 @@ async def db_session() -> AsyncSession:
                     text(
                         """
                         TRUNCATE TABLE
-                          weekly_tasks,
+                          daily_tasks,
+                          capacity_snapshots,
                           checkin_sessions,
                           curriculum_chunks,
                           curricula,

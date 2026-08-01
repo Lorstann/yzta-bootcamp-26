@@ -10,7 +10,7 @@
 ---
 
 ## 1. Executive Summary (Yönetici Özeti)
-Equa, yoğun eğitim süreçlerinden (bootcamp, akademi, üniversite) geçen öğrenciler için tasarlanmış, B2B2C modeliyle çalışan yapay zeka destekli bir kariyer ve kapasite koçudur. Sistem, kurumların müfredatını (syllabus) baz alarak öğrencinin akademik, teknik ve sosyal gelişimini analiz eder; sürdürülebilir haftalık aksiyon planları sunar. Kurumlara ise dropout (bırakma) risklerini proaktif olarak tespit eden ve doğrudan korunan eğitim geliri/başarı oranını gösteren bir ROI dashboard'u sağlar.
+Equa, yoğun eğitim süreçlerinden (bootcamp, akademi, üniversite) geçen öğrenciler için tasarlanmış, B2B2C modeliyle çalışan yapay zeka destekli bir kariyer ve kapasite koçudur. Sistem, kurumların müfredatını (syllabus) baz alarak öğrencinin akademik, teknik ve sosyal gelişimini analiz eder; sürdürülebilir günlük aksiyon planları sunar. Kurumlara ise dropout (bırakma) risklerini proaktif olarak tespit eden ve doğrudan korunan eğitim geliri/başarı oranını gösteren bir ROI dashboard'u sağlar.
 
 ## 2. Problem Statement (Problem Tanımı)
 Öğrenciler teknik gelişim, portfolyo oluşturma ve sosyal beceri kazanımı arasında önceliklendirme yapamamakta ve tükenmişlik (burnout) yaşamaktadır. Eğitim kurumları ise öğrencilerin psikolojik yükünü, kapasite aşımlarını ve kariyer hazırlık seviyelerini gerçek zamanlı göremediği için dropout oranlarını düşürmekte ve işe yerleştirme hedeflerinde reaktif kalmaktadır.
@@ -21,7 +21,7 @@ Her öğrencinin kendi psikolojik ve bilişsel kapasitesine uygun, sürdürüleb
 ## 4. Goals & Non-Goals
 
 **Hedefler:**
-*   Öğrencilerin %70'ini haftalık 2 dakikalık AI Web App sohbetleriyle "Haftalık Aktif Kullanıcı (WAU)" olarak tutmak.
+*   Öğrencilerin %70'ini günlük ~2 dakikalık AI Web App sohbetleriyle "Günlük Aktif Kullanıcı (DAU)" olarak tutmak.
 *   B2B pilot müşterilerinde (bootcamp/akademi) öğrenci bırakma (dropout) oranlarını %20 azaltmak.
 *   Risk tespitinden mentör müdahalesine kadar geçen süreyi 14 günden 2 güne indirmek.
 
@@ -34,7 +34,7 @@ Her öğrencinin kendi psikolojik ve bilişsel kapasitesine uygun, sürdürüleb
 
 **Birincil Kullanıcı (Öğrenci) - "Bunalmış Can"**
 *   **Profil:** 22 yaşında, teknik bir bootcamp öğrencisi. Portfolyo ve mülakat stresi yüksek.
-*   **İhtiyaç (JTBD):** "Bana şu anki kapasiteme ve kurumun müfredatına uygun, tükenmeme engel olacak yutulabilir (bite-sized) bir haftalık kariyer reçetesi ver."
+*   **İhtiyaç (JTBD):** "Bana şu anki kapasiteme ve kurumun müfredatına uygun, tükenmeme engel olacak yutulabilir (bite-sized) bir günlük kariyer reçetesi ver."
 
 **İkincil Kullanıcı (Kurum Koordinatörü) - "Kör Uçuşundaki Zeynep"**
 *   **Profil:** 100+ öğrencinin başarısından sorumlu eğitim profesyoneli.
@@ -48,9 +48,9 @@ Her öğrencinin kendi psikolojik ve bilişsel kapasitesine uygun, sürdürüleb
 | FR2 | Onboarding | 5 dakikalık chat tabanlı teşhis (diagnostic) ve profil oluşturma akışı. | **Must** |
 | FR3 | Data Ingestion | LinkedIn profil PDF'i yükleyerek OCR/LLM (Textract/LlamaParse) ile yetkinlik JSON'u çıkarma. | **Must** |
 | FR4 | Fallback Flow | PDF okunamadığında AI'ın eksik verileri chat üzerinden kullanıcıya sorması. | **Must** |
-| FR5 | AI Core | Hafıza (Memory) ve RAG kullanan haftalık 2 dakikalık AI Check-in asistanı. | **Must** |
+| FR5 | AI Core | Hafıza (Memory) ve RAG kullanan günlük ~2 dakikalık AI Check-in asistanı. | **Must** |
 | FR6 | Curriculum Inject| AI'ın sadece kurumun sisteme yüklediği müfredat bağlamında görev önermesi. | **Must** |
-| FR7 | Load Balancing | Öğrenci kapasitesine göre haftalık maks. 3 görev atayan dengeleme algoritması. | **Must** |
+| FR7 | Load Balancing | Öğrenci kapasitesine göre günlük maks. 3 görev atayan dengeleme algoritması. | **Must** |
 | FR8 | B2B Dashboard | Kurumlar için öğrenci risk sinyallerini (Yeşil, Sarı, Kırmızı) gösteren arayüz. | **Must** |
 | FR9 | ROI Tracker | Dashboard'da "Önlenen Dropout Sayısı / Korunan Gelir" metriğinin gösterimi. | **Must** |
 | FR10| Integration | GitHub OAuth ile repo/commit kalitesi analizi. | **Won't (MVP)** |
@@ -79,7 +79,7 @@ Sistem, yüksek performans ve asenkron AI işlemleri göz önüne alınarak mode
     *   Dropout oranında net azalma (Pilot program öncesi/sonrası kıyaslaması).
     *   Equa Dashboard üzerinden tetiklenen başarılı mentör müdahalesi sayısı.
 *   **Öğrenci Kullanım Metrikleri:**
-    *   `ai_checkin_completion_rate`: Haftalık %70 üzeri.
+    *   `ai_checkin_completion_rate`: Günlük %70 üzeri.
     *   `task_completion_rate`: Önerilen hedeflerin (kapasite dengeli) %60 oranında tamamlanması.
     *   Kariyer hazırlık (Gap Analysis) skorlarında periyodik artış.
 

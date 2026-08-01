@@ -13,5 +13,8 @@ export const queryKeys = {
   institution: {
     students: () => ['institution', 'students'] as const,
     roi: () => ['institution', 'roi'] as const,
+    overview: () => ['institution', 'overview'] as const,
+    usage: () => ['institution', 'usage'] as const,
+    me: () => ['institution', 'me'] as const,
   },
 }

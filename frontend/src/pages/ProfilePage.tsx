@@ -29,7 +29,7 @@ type Profile = {
 
 type ProfileStats = {
   total_checkins: number
-  streak_weeks: number
+  streak_days: number
   completed_tasks: number
   open_tasks: number
   capacity_history: Array<{ score: number; recorded_at: string }>
@@ -204,9 +204,9 @@ export function ProfilePage() {
           value={stats?.completed_tasks ?? '—'}
         />
         <StatCard
-          label="Hafta Serisi"
+          label="Gün Serisi"
           value={
-            stats?.streak_weeks != null ? `${stats.streak_weeks} Hafta` : '—'
+            stats?.streak_days != null ? `${stats.streak_days} gün` : '—'
           }
         />
       </div>

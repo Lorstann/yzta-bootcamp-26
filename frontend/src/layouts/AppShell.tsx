@@ -7,7 +7,9 @@ import {
   Calendar,
   User,
   Building2,
+  Bot,
   Rocket,
+  LogOut,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
 import { BottomNav } from '@/components/BottomNav'
@@ -24,11 +26,19 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
       : 'border-l-4 border-transparent text-equa-muted hover:bg-equa-surface-highest/40',
   ].join(' ')
 
+function isStaffRole(role: string | undefined): boolean {
+  return role === 'instructor' || role === 'admin'
+}
+
 export function AppShell() {
   const user = getStoredUser()
   const navigate = useNavigate()
-  const showInstitution =
-    user && ['instructor', 'admin'].includes(user.role)
+  const staff = isStaffRole(user?.role)
+
+  function handleLogout() {
+    clearAuth()
+    window.location.href = '/login'
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-x-hidden lg:flex-row">
@@ -37,54 +47,72 @@ export function AppShell() {
           <BrandLogo />
         </div>
         <nav className="mt-4 flex flex-col gap-1" aria-label="Ana menü">
-          <NavLink to="/dashboard" className={navClass}>
-            <Home size={20} aria-hidden />
-            Ana Sayfa
-          </NavLink>
-          <NavLink to="/chat" className={navClass}>
-            <MessageSquare size={20} aria-hidden />
-            Sohbet
-          </NavLink>
-          <NavLink to="/checkin" className={navClass}>
-            <ClipboardCheck size={20} aria-hidden />
-            Check-in
-          </NavLink>
-          <NavLink to="/tasks" className={navClass}>
-            <ListTodo size={20} aria-hidden />
-            Görevler
-          </NavLink>
-          <NavLink to="/takvim" className={navClass}>
-            <Calendar size={20} aria-hidden />
-            Takvim
-          </NavLink>
-          <NavLink to="/profile" className={navClass}>
-            <User size={20} aria-hidden />
-            Profil
-          </NavLink>
-          {showInstitution ? (
-            <NavLink to="/institution" className={navClass}>
-              <Building2 size={20} aria-hidden />
-              Kurum
-            </NavLink>
-          ) : null}
+          {staff ? (
+            <>
+              <NavLink to="/institution" end className={navClass}>
+                <Building2 size={20} aria-hidden />
+                Kurum
+              </NavLink>
+              <NavLink to="/institution/assistant" className={navClass}>
+                <Bot size={20} aria-hidden />
+                Asistan
+              </NavLink>
+              <NavLink to="/institution/profile" className={navClass}>
+                <User size={20} aria-hidden />
+                Profil
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/dashboard" className={navClass}>
+                <Home size={20} aria-hidden />
+                Ana Sayfa
+              </NavLink>
+              <NavLink to="/chat" className={navClass}>
+                <MessageSquare size={20} aria-hidden />
+                Sohbet
+              </NavLink>
+              <NavLink to="/checkin" className={navClass}>
+                <ClipboardCheck size={20} aria-hidden />
+                Check-in
+              </NavLink>
+              <NavLink to="/tasks" className={navClass}>
+                <ListTodo size={20} aria-hidden />
+                Görevler
+              </NavLink>
+              <NavLink to="/takvim" className={navClass}>
+                <Calendar size={20} aria-hidden />
+                Takvim
+              </NavLink>
+              <NavLink to="/profile" className={navClass}>
+                <User size={20} aria-hidden />
+                Profil
+              </NavLink>
+            </>
+          )}
         </nav>
         <div className="mt-auto space-y-3">
-          <Button
-            className="w-full"
-            onClick={() => navigate('/chat')}
-          >
-            <Rocket size={18} aria-hidden />
-            Check-in Başlat
-          </Button>
+          {staff ? (
+            <Button
+              className="w-full"
+              onClick={() => navigate('/institution/assistant')}
+            >
+              <Bot size={18} aria-hidden />
+              Asistan
+            </Button>
+          ) : (
+            <Button className="w-full" onClick={() => navigate('/chat')}>
+              <Rocket size={18} aria-hidden />
+              Check-in Başlat
+            </Button>
+          )}
           {user ? (
             <button
               type="button"
-              className="w-full text-left text-xs text-equa-muted underline hover:text-equa-primary"
-              onClick={() => {
-                clearAuth()
-                window.location.href = '/login'
-              }}
+              className="flex w-full items-center gap-2 text-left text-xs text-equa-muted underline hover:text-equa-primary"
+              onClick={handleLogout}
             >
+              <LogOut size={14} aria-hidden />
               Çıkış ({user.email})
             </button>
           ) : (

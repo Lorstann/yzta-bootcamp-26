@@ -2,12 +2,12 @@
 
 export const MOCK_CHAT_CHUNKS = [
   'Merhaba, ',
-  'bu hafta nasıl ',
+  'bugün nasıl ',
   'gidiyor? ',
   'Birlikte kısa bir plan çıkaralım.',
 ] as const
 
-export const MOCK_WEEKLY_TASKS = [
+export const MOCK_DAILY_TASKS = [
   'Müfredattan 1 modül tekrarı yap',
   'Kısa bir LinkedIn profil gözden geçirmesi',
   'Mentöre 1 soru hazırla',

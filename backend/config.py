@@ -46,12 +46,21 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # Rate limiting (requests per window)
+    rate_limit_login_per_minute: int = 20
+    rate_limit_stream_per_minute: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @model_validator(mode="after")
     def reject_insecure_production_secrets(self) -> "Settings":

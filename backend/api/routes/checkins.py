@@ -27,7 +27,7 @@ async def current_checkin(
 
 @router.get("/checkins/history")
 async def checkin_history(
-    limit: int = Query(default=26, ge=1, le=104),
+    limit: int = Query(default=30, ge=1, le=365),
     user: CurrentUser = Depends(_student),
     db: AsyncSession = Depends(get_db_for_user),
 ):

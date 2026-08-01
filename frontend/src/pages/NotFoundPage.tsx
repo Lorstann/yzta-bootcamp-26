@@ -12,7 +12,7 @@ export function NotFoundPage() {
         Aradığın sayfa yok veya taşınmış olabilir.
       </p>
       <Link to="/dashboard" className="mt-6 no-underline">
-        <Button>Sohbete dön</Button>
+        <Button>Ana sayfaya dön</Button>
       </Link>
     </div>
   )

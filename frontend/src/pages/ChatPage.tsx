@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { ChatInput } from '@/features/chat/ChatInput'
 import { MessageBubble } from '@/features/chat/MessageBubble'
@@ -7,14 +7,16 @@ import { useChatStream } from '@/features/chat/useChatStream'
 import type { ChatMessage } from '@/features/chat/types'
 import { apiGet } from '@/shared/api/client'
 import { ApiClientError } from '@/shared/api/envelope'
-import { Badge, GlassPanel } from '@/components/ui'
+import { AiChip, Badge, GlassPanel } from '@/components/ui'
 
 type CheckinSession = {
   id: string
-  week_start: string
+  checkin_date: string
   status: string
+  energy_level?: number | null
+  motivation_level?: number | null
   messages: Array<{ role: string; content: string }>
-  weekly_tasks: Array<{
+  daily_tasks: Array<{
     id: string
     title: string
     is_completed: boolean
@@ -28,12 +30,16 @@ export function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [sessionError, setSessionError] = useState<string | null>(null)
+  const [seedEnergy, setSeedEnergy] = useState<number | null>(null)
+  const [seedMotivation, setSeedMotivation] = useState<number | null>(null)
   const {
     messages,
     status,
     error,
-    weeklyTasks,
+    dailyTasks,
     guardrail,
+    checkinCompleted,
+    checkinState,
     sendMessage,
     retry,
     hydrateMessages,
@@ -52,6 +58,9 @@ export function ChatPage() {
       .then((session) => {
         if (cancelled) return
         setSessionId(session.id)
+        if (session.energy_level != null) setSeedEnergy(session.energy_level)
+        if (session.motivation_level != null)
+          setSeedMotivation(session.motivation_level)
         if (!hydratedRef.current && session.messages?.length) {
           const seed: ChatMessage[] = session.messages.map((m, i) => ({
             id: `seed-${i}`,
@@ -118,9 +127,15 @@ export function ChatPage() {
   }
 
   const sideTasks =
-    weeklyTasks && weeklyTasks.length > 0
-      ? weeklyTasks
-      : null
+    dailyTasks && dailyTasks.length > 0 ? dailyTasks : null
+
+  const energy =
+    checkinState?.enerji ?? seedEnergy
+  const motivation =
+    checkinState?.motivasyon ?? seedMotivation
+
+  const aiChipLabel =
+    status === 'streaming' ? 'AI yazıyor' : status === 'idle' ? 'AI Canlı' : null
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-4 p-4 lg:flex-row lg:gap-6 lg:p-6">
@@ -128,11 +143,26 @@ export function ChatPage() {
         className="glass-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-2xl"
         aria-label="Sohbet alanı"
       >
-        <div className="shrink-0 border-b border-equa-line/20 px-4 py-3 lg:px-6">
-          <h1 className="font-display text-lg font-bold text-equa-ink lg:text-xl">
-            Haftalık Check-in
-          </h1>
-          <p className="text-sm text-equa-muted">AI koçunla kısa bir check-in yap.</p>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-equa-line/20 px-4 py-3 lg:px-6">
+          <div className="min-w-0">
+            <h1 className="font-display text-lg font-bold text-equa-ink lg:text-xl">
+              Günlük Check-in
+            </h1>
+            <p className="text-sm text-equa-muted">
+              AI koçunla kısa bir check-in yap.
+            </p>
+            {(energy != null || motivation != null) && (
+              <p
+                className="mt-1 text-xs text-equa-muted"
+                data-testid="checkin-signals"
+              >
+                {energy != null ? `Enerji ${energy}/10` : null}
+                {energy != null && motivation != null ? ' · ' : null}
+                {motivation != null ? `Motivasyon ${motivation}/10` : null}
+              </p>
+            )}
+          </div>
+          {aiChipLabel ? <AiChip>{aiChipLabel}</AiChip> : null}
         </div>
 
         <div
@@ -147,16 +177,12 @@ export function ChatPage() {
                 Mesaj yazarak başla
               </p>
               <p className="mt-2 max-w-xs text-sm text-equa-muted">
-                Bu hafta nasıl hissediyorsun? Kısa bir mesaj yeterli.
+                Bugün nasıl hissediyorsun? Kısa bir mesaj yeterli.
               </p>
             </div>
           ) : (
-            messages.map((m, i) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                showAiChip={i === 0 && m.role === 'assistant'}
-              />
+            messages.map((m) => (
+              <MessageBubble key={m.id} message={m} />
             ))
           )}
 
@@ -205,16 +231,36 @@ export function ChatPage() {
             </div>
           ) : null}
 
-          {weeklyTasks && weeklyTasks.length > 0 ? (
+          {checkinCompleted ? (
+            <div
+              className="rounded-xl border border-equa-primary/40 bg-equa-primary/10 px-3 py-2.5 text-sm text-equa-ink"
+              role="status"
+              data-testid="checkin-complete"
+            >
+              <p className="font-medium">Bugünkü check-in tamam</p>
+              <p className="mt-1 text-equa-muted">
+                Durumunu kaydettik. Görevlerine göz atabilir veya özeti
+                Check-in sayfasında görebilirsin.
+              </p>
+              <Link
+                to="/checkin"
+                className="mt-2 inline-block text-sm font-medium text-equa-primary underline"
+              >
+                Check-in özetine git
+              </Link>
+            </div>
+          ) : null}
+
+          {dailyTasks && dailyTasks.length > 0 ? (
             <div
               className="rounded-xl border border-equa-line/30 bg-equa-surface/80 px-3 py-2.5 lg:hidden"
-              data-testid="weekly-tasks"
+              data-testid="daily-tasks"
             >
               <p className="text-xs font-medium uppercase tracking-wide text-equa-muted">
-                Bu haftanın görevleri
+                Bugünün görevleri
               </p>
               <ul className="mt-1.5 list-disc space-y-1 pl-4 text-sm text-equa-ink">
-                {weeklyTasks.map((task) => (
+                {dailyTasks.map((task) => (
                   <li key={task}>{task}</li>
                 ))}
               </ul>
@@ -227,7 +273,10 @@ export function ChatPage() {
           data-testid="chat-input-slot"
           aria-label="Mesaj yazma alanı"
         >
-          <ChatInput disabled={isStreaming} onSend={sendMessage} />
+          <ChatInput
+            disabled={isStreaming || checkinCompleted}
+            onSend={sendMessage}
+          />
         </div>
       </section>
 
@@ -235,14 +284,14 @@ export function ChatPage() {
         <GlassPanel className="flex flex-1 flex-col p-6 shadow-xl">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-equa-ink">
-              Haftalık Görevler
+              Günlük Görevler
             </h2>
             <Badge tone="accent">
               {sideTasks ? `${sideTasks.length} Görev` : '—'}
             </Badge>
           </div>
           {sideTasks ? (
-            <ul className="space-y-3" data-testid="weekly-tasks-desktop">
+            <ul className="space-y-3" data-testid="daily-tasks-desktop">
               {sideTasks.map((task) => (
                 <li
                   key={task}

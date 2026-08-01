@@ -379,7 +379,7 @@ export interface components {
             guardrail_triggered: boolean;
             /** @enum {string|null} */
             guardrail_category?: "critical" | "dropout" | "depression" | null;
-            weekly_tasks?: string[] | null;
+            daily_tasks?: string[] | null;
         };
         ChatSseErrorEvent: {
             /**
@@ -390,7 +390,7 @@ export interface components {
             message: string;
         };
         ChatSseEvent: components["schemas"]["ChatSseChunkEvent"] | components["schemas"]["ChatSseDoneEvent"] | components["schemas"]["ChatSseErrorEvent"];
-        WeeklyTaskOut: {
+        DailyTaskOut: {
             /** Format: uuid */
             id: string;
             title: string;
@@ -408,7 +408,7 @@ export interface components {
             /** Format: date-time */
             created_at?: string | null;
             /** Format: date */
-            week_start?: string | null;
+            checkin_date?: string | null;
             /** Format: uuid */
             checkin_session_id?: string | null;
         };
@@ -416,12 +416,12 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: date */
-            week_start: string;
+            checkin_date: string;
             status: string;
             summary?: string | null;
             mood_score?: number | null;
             messages: Record<string, never>[];
-            weekly_tasks: components["schemas"]["WeeklyTaskOut"][];
+            daily_tasks: components["schemas"]["DailyTaskOut"][];
         };
         CheckinSessionResponse: components["schemas"]["SuccessEnvelope"] & {
             data?: components["schemas"]["CheckinSessionOut"];
@@ -433,7 +433,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** Format: date */
-            week_start: string;
+            checkin_date: string;
             status: string;
             summary?: string | null;
             mood_score?: number | null;
@@ -447,7 +447,7 @@ export interface components {
         };
         TaskListResponse: components["schemas"]["SuccessEnvelope"] & {
             data?: {
-                tasks?: components["schemas"]["WeeklyTaskOut"][];
+                tasks?: components["schemas"]["DailyTaskOut"][];
             };
         };
         TaskCompleteRequest: {
@@ -461,7 +461,7 @@ export interface components {
         };
         ProfileStatsOut: {
             total_checkins: number;
-            streak_weeks: number;
+            streak_days: number;
             completed_tasks: number;
             open_tasks?: number;
             capacity_history?: {

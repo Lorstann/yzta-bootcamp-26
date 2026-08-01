@@ -18,7 +18,7 @@ async def register(db: AsyncSession, body: RegisterRequest):
         full_name=body.full_name,
         role=body.role,
     )
-    return ok(data=data, meta={})
+    return ok(data=data, meta={}, status_code=201)
 
 
 async def login(db: AsyncSession, body: LoginRequest):

@@ -28,6 +28,6 @@ class ChatResponseData(BaseModel):
     guardrail_category: Optional[str] = Field(
         default=None, description="Tetiklenen kategori: critical | dropout | depression"
     )
-    weekly_tasks: Optional[List[str]] = Field(
-        default=None, description="Check-in sonunda önerilen max 3 görev"
+    daily_tasks: Optional[List[str]] = Field(
+        default=None, description="Check-in sonunda önerilen max 3 günlük görev"
     )

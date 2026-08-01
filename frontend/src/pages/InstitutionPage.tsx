@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Bot, User } from 'lucide-react'
 import { apiGet } from '@/shared/api/client'
 import { queryKeys } from '@/shared/api/query-keys'
 
@@ -21,6 +22,15 @@ type Roi = {
   revenue_per_student: number
   active_high_risk: number
   total_students: number
+}
+
+type Overview = {
+  total_students: number
+  checked_in_today: number
+  daily_checkin_rate: number
+  avg_capacity: number | null
+  risk_distribution: { green: number; yellow: number; red: number }
+  roi: Roi
 }
 
 const riskColor: Record<string, string> = {
@@ -51,7 +61,7 @@ function metricLines(metrics: Record<string, unknown> | null): string[] {
   if (typeof metrics.missed_checkin === 'boolean') {
     lines.push(
       metrics.missed_checkin
-        ? 'Bu hafta check-in kaçırıldı'
+        ? 'Bugün check-in kaçırıldı'
         : 'Check-in durumu güncel',
     )
   }
@@ -88,6 +98,10 @@ export function InstitutionPage() {
     queryKey: queryKeys.institution.roi(),
     queryFn: () => apiGet<Roi>('/api/v1/institution/roi'),
   })
+  const overviewQuery = useQuery({
+    queryKey: queryKeys.institution.overview(),
+    queryFn: () => apiGet<Overview>('/api/v1/institution/overview'),
+  })
 
   const filtered = useMemo(() => {
     const list = studentsQuery.data?.students ?? []
@@ -102,12 +116,15 @@ export function InstitutionPage() {
   }, [studentsQuery.data?.students, search, riskFilter])
 
   const students = studentsQuery.data?.students ?? []
-  const roi = roiQuery.data ?? null
-  const loading = studentsQuery.isLoading || roiQuery.isLoading
+  const overview = overviewQuery.data ?? null
+  const roi = overview?.roi ?? roiQuery.data ?? null
+  const loading =
+    studentsQuery.isLoading ||
+    (roiQuery.isLoading && overviewQuery.isLoading)
   const error =
     studentsQuery.error instanceof Error
       ? studentsQuery.error.message
-      : roiQuery.error instanceof Error
+      : roiQuery.error instanceof Error && !overview
         ? roiQuery.error.message
         : null
 
@@ -123,6 +140,7 @@ export function InstitutionPage() {
           onClick={() => {
             void studentsQuery.refetch()
             void roiQuery.refetch()
+            void overviewQuery.refetch()
           }}
         >
           Yeniden dene
@@ -136,12 +154,49 @@ export function InstitutionPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="font-display text-xl font-semibold text-equa-ink">
-        Risk & müdahale
-      </h1>
-      <p className="mt-1 text-sm text-equa-muted">
-        10 saniyede kimler kırmızı, neden, ne yapılmalı.
-      </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-display text-xl font-semibold text-equa-ink">
+            Risk & müdahale
+          </h1>
+          <p className="mt-1 text-sm text-equa-muted">
+            10 saniyede kimler kırmızı, neden, ne yapılmalı.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/institution/assistant"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-equa-line/40 bg-equa-surface/50 px-3 py-2 text-sm font-bold text-equa-ink transition-all hover:bg-equa-surface-high/80"
+          >
+            <Bot size={16} aria-hidden />
+            Asistan
+          </Link>
+          <Link
+            to="/institution/profile"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-equa-line/30 bg-transparent px-3 py-2 text-sm font-bold text-equa-muted transition-all hover:bg-equa-surface-high/50 hover:text-equa-ink"
+          >
+            <User size={16} aria-hidden />
+            Profil
+          </Link>
+        </div>
+      </div>
+
+      {overview && !loading ? (
+        <div className="mt-4 flex flex-wrap gap-4 text-sm text-equa-muted">
+          <span>
+            Bugün check-in:{' '}
+            <strong className="text-equa-ink">
+              {overview.checked_in_today}/{overview.total_students}
+            </strong>
+          </span>
+          {overview.avg_capacity != null ? (
+            <span>
+              Ort. kapasite:{' '}
+              <strong className="text-equa-ink">{overview.avg_capacity}</strong>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {loading && !roi ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-3" aria-busy="true">

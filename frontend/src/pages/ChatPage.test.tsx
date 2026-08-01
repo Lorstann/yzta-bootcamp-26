@@ -31,14 +31,14 @@ describe('ChatPage', () => {
     expect(await screen.findByText('Mesaj yazarak başla')).toBeInTheDocument()
 
     const input = screen.getByLabelText('Mesajın')
-    await user.type(input, 'Bu hafta iyiyim')
+    await user.type(input, 'Bugün iyiyim')
     await user.click(screen.getByRole('button', { name: 'Gönder' }))
 
-    expect(await screen.findByText('Bu hafta iyiyim')).toBeInTheDocument()
+    expect(await screen.findByText('Bugün iyiyim')).toBeInTheDocument()
 
     await waitFor(
       () => {
-        expect(screen.getByTestId('weekly-tasks')).toBeInTheDocument()
+        expect(screen.getByTestId('daily-tasks')).toBeInTheDocument()
       },
       { timeout: 5000 },
     )

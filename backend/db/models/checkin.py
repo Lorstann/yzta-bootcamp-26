@@ -1,6 +1,6 @@
 """
 backend/db/models/checkin.py
-B8: CheckinSession ve WeeklyTask ORM modelleri.
+B8: CheckinSession ve DailyTask ORM modelleri (günlük check-in).
 """
 
 import uuid
@@ -25,8 +25,18 @@ class CheckinSession(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    week_start: Mapped[date] = mapped_column(Date, nullable=False)
+    checkin_date: Mapped[date] = mapped_column(Date, nullable=False)
     mood_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    energy_level: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    motivation_level: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    workload_level: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    main_blocker: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    stage: Mapped[str] = mapped_column(
+        String(32), server_default=text("'opening'"), nullable=False
+    )
+    turn_count: Mapped[int] = mapped_column(
+        Integer, server_default=text("0"), nullable=False
+    )
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     messages: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, server_default=text("'[]'::jsonb"), nullable=False
@@ -41,17 +51,16 @@ class CheckinSession(Base):
         TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False
     )
 
-    # İlişkiler
-    weekly_tasks: Mapped[list["WeeklyTask"]] = relationship(
-        "WeeklyTask", back_populates="checkin_session"
+    daily_tasks: Mapped[list["DailyTask"]] = relationship(
+        "DailyTask", back_populates="checkin_session"
     )
 
     def __repr__(self) -> str:
         return f"<CheckinSession id={self.id} user_id={self.user_id} status={self.status!r}>"
 
 
-class WeeklyTask(Base):
-    __tablename__ = "weekly_tasks"
+class DailyTask(Base):
+    __tablename__ = "daily_tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
@@ -79,10 +88,13 @@ class WeeklyTask(Base):
         TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False
     )
 
-    # İlişkiler
     checkin_session: Mapped["CheckinSession"] = relationship(
-        "CheckinSession", back_populates="weekly_tasks"
+        "CheckinSession", back_populates="daily_tasks"
     )
 
     def __repr__(self) -> str:
-        return f"<WeeklyTask id={self.id} title={self.title!r} completed={self.is_completed}>"
+        return f"<DailyTask id={self.id} title={self.title!r} completed={self.is_completed}>"
+
+
+# Backwards-compatible alias during transition
+WeeklyTask = DailyTask

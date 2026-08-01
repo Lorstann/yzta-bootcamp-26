@@ -1,5 +1,13 @@
 /** SSE event shapes for POST /api/v1/chat/stream */
 
+export type CheckinStatePayload = {
+  enerji?: number | null
+  motivasyon?: number | null
+  engel?: string | null
+  yuk?: string | null
+  hazir?: boolean
+}
+
 export type ChatSseChunkEvent = {
   type: 'chunk'
   data: string
@@ -9,7 +17,11 @@ export type ChatSseDoneEvent = {
   type: 'done'
   guardrail_triggered: boolean
   guardrail_category: 'critical' | 'dropout' | 'depression' | null
-  weekly_tasks: string[] | null
+  daily_tasks: string[] | null
+  checkin_completed?: boolean
+  state?: CheckinStatePayload | null
+  stage?: string
+  turn_count?: number
 }
 
 export type ChatSseErrorEvent = {

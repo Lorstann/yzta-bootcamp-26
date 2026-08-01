@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiGet } from '@/shared/api/client'
 import { queryKeys } from '@/shared/api/query-keys'
 import { Badge, Button, GlassPanel, Skeleton } from '@/components/ui'
 
 type HistorySession = {
   id: string
-  week_start: string
+  checkin_date: string
   status: string
   summary: string | null
   mood_score: number | null
@@ -20,7 +20,7 @@ type Task = {
   title: string
   is_completed: boolean
   due_date?: string | null
-  week_start?: string | null
+  checkin_date?: string | null
   completed_at?: string | null
   status?: string
 }
@@ -48,7 +48,7 @@ export function CalendarPage() {
   const { data: history, isLoading: histLoading } = useQuery({
     queryKey: queryKeys.checkin.history(),
     queryFn: () =>
-      apiGet<{ sessions: HistorySession[] }>('/api/v1/checkins/history?limit=52'),
+      apiGet<{ sessions: HistorySession[] }>('/api/v1/checkins/history?limit=365'),
   })
   const { data: taskData, isLoading: taskLoading } = useQuery({
     queryKey: queryKeys.tasks.all(),
@@ -63,13 +63,13 @@ export function CalendarPage() {
   const eventsByDay = useMemo(() => {
     const map = new Map<string, { label: string; tone: 'accent' | 'cyan' | 'yellow' }[]>()
     for (const s of history?.sessions ?? []) {
-      const key = s.week_start
+      const key = s.checkin_date
       const list = map.get(key) ?? []
       list.push({ label: 'Check-in', tone: 'accent' })
       map.set(key, list)
     }
     for (const t of taskData?.tasks ?? []) {
-      const key = t.due_date || t.completed_at?.slice(0, 10) || t.week_start
+      const key = t.due_date || t.completed_at?.slice(0, 10) || t.checkin_date
       if (!key) continue
       const list = map.get(key) ?? []
       list.push({
@@ -82,11 +82,11 @@ export function CalendarPage() {
   }, [history, taskData])
 
   const selectedTasks = (taskData?.tasks ?? []).filter((t) => {
-    const key = t.due_date || t.completed_at?.slice(0, 10) || t.week_start
+    const key = t.due_date || t.completed_at?.slice(0, 10) || t.checkin_date
     return key === selected
   })
   const selectedSession = (history?.sessions ?? []).find(
-    (s) => s.week_start === selected,
+    (s) => s.checkin_date === selected,
   )
 
   const monthLabel = cursor.toLocaleDateString('tr-TR', {
@@ -144,7 +144,7 @@ export function CalendarPage() {
 
         <div
           role="grid"
-          aria-label="Takvim"
+          aria-label="Günlük takvim"
           className="grid grid-cols-7 gap-1"
         >
           {WEEKDAYS.map((d) => (
@@ -199,7 +199,7 @@ export function CalendarPage() {
 
       <GlassPanel className="flex w-full flex-col p-6 lg:w-96">
         <p className="text-[12px] font-bold uppercase tracking-wider text-equa-muted">
-          Seçili Tarih
+          Seçili Gün
         </p>
         <h2 className="mt-1 font-display text-xl font-bold text-equa-ink">
           {new Date(selected + 'T12:00:00').toLocaleDateString('tr-TR', {
@@ -212,7 +212,7 @@ export function CalendarPage() {
         <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
           {selectedSession ? (
             <div className="rounded-xl border border-equa-line/20 bg-equa-surface p-3">
-              <p className="font-bold text-equa-ink">Check-in oturumu</p>
+              <p className="font-bold text-equa-ink">Günlük check-in</p>
               <p className="mt-1 text-sm text-equa-muted">
                 Durum: {selectedSession.status} · {selectedSession.completed_task_count}/
                 {selectedSession.task_count} görev
@@ -248,11 +248,6 @@ export function CalendarPage() {
             ))
           )}
         </div>
-
-        <Button variant="ghost" className="mt-4 w-full" disabled>
-          <Plus size={16} aria-hidden />
-          Yeni Görev Ekle
-        </Button>
       </GlassPanel>
     </div>
   )

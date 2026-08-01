@@ -15,7 +15,7 @@ describe('parseSse', () => {
   it('parses chunk, done, and error events', async () => {
     const sse =
       'data: {"type":"chunk","data":"Merhaba "}\n\n' +
-      'data: {"type":"done","guardrail_triggered":false,"guardrail_category":null,"weekly_tasks":["görev 1"]}\n\n' +
+      'data: {"type":"done","guardrail_triggered":false,"guardrail_category":null,"daily_tasks":["görev 1"]}\n\n' +
       'data: {"type":"error","message":"bozuk"}\n\n'
 
     const events: ChatSseEvent[] = []
@@ -29,7 +29,7 @@ describe('parseSse', () => {
         type: 'done',
         guardrail_triggered: false,
         guardrail_category: null,
-        weekly_tasks: ['görev 1'],
+        daily_tasks: ['görev 1'],
       },
       { type: 'error', message: 'bozuk' },
     ])

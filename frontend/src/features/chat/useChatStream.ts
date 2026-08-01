@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { streamChat } from '@/shared/api/chat'
 import { ApiClientError } from '@/shared/api/envelope'
+import type { CheckinStatePayload } from '@/shared/api/sse'
 import type { ChatMessage, ChatStatus, GuardrailInfo } from './types'
 
 function createId(): string {
@@ -15,8 +16,12 @@ export function useChatStream(sessionId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [error, setError] = useState<string | null>(null)
-  const [weeklyTasks, setWeeklyTasks] = useState<string[] | null>(null)
+  const [dailyTasks, setDailyTasks] = useState<string[] | null>(null)
   const [guardrail, setGuardrail] = useState<GuardrailInfo | null>(null)
+  const [checkinCompleted, setCheckinCompleted] = useState(false)
+  const [checkinState, setCheckinState] = useState<CheckinStatePayload | null>(
+    null,
+  )
   const lastUserMessageRef = useRef<string>('')
 
   const sendMessage = useCallback(
@@ -31,7 +36,7 @@ export function useChatStream(sessionId: string | null) {
 
       lastUserMessageRef.current = trimmed
       setError(null)
-      setWeeklyTasks(null)
+      setDailyTasks(null)
       setGuardrail(null)
       setStatus('streaming')
 
@@ -69,8 +74,17 @@ export function useChatStream(sessionId: string | null) {
                 m.id === assistantId ? { ...m, streaming: false } : m,
               ),
             )
-            if (event.weekly_tasks?.length) {
-              setWeeklyTasks(event.weekly_tasks)
+            if (event.daily_tasks?.length) {
+              setDailyTasks(event.daily_tasks)
+            }
+            if (event.state) {
+              setCheckinState((prev) => ({
+                ...(prev ?? {}),
+                ...event.state,
+              }))
+            }
+            if (event.checkin_completed) {
+              setCheckinCompleted(true)
             }
             if (event.guardrail_triggered) {
               setGuardrail({
@@ -135,8 +149,10 @@ export function useChatStream(sessionId: string | null) {
     messages,
     status,
     error,
-    weeklyTasks,
+    dailyTasks,
     guardrail,
+    checkinCompleted,
+    checkinState,
     sendMessage,
     retry,
     hydrateMessages,

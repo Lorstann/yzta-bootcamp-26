@@ -1,7 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
 import {
   MOCK_CHAT_CHUNKS,
-  MOCK_WEEKLY_TASKS,
+  MOCK_DAILY_TASKS,
   encodeSse,
 } from './data/chat-fixtures'
 
@@ -60,12 +60,16 @@ export const handlers = [
       success: true,
       data: {
         id: MOCK_SESSION_ID,
-        week_start: '2026-07-28',
+        checkin_date: '2026-07-28',
         status: 'in_progress',
         summary: null,
         mood_score: null,
+        energy_level: null,
+        motivation_level: null,
+        stage: 'opening',
+        turn_count: 0,
         messages: [],
-        weekly_tasks: [],
+        daily_tasks: [],
       },
       error: null,
       meta: {},
@@ -79,7 +83,7 @@ export const handlers = [
         sessions: [
           {
             id: MOCK_SESSION_ID,
-            week_start: '2026-07-28',
+            checkin_date: '2026-07-28',
             status: 'in_progress',
             summary: null,
             mood_score: 4,
@@ -99,12 +103,12 @@ export const handlers = [
       success: true,
       data: {
         id: MOCK_SESSION_ID,
-        week_start: '2026-07-28',
+        checkin_date: '2026-07-28',
         status: 'in_progress',
         summary: null,
         mood_score: body.mood_score ?? 3,
         messages: [],
-        weekly_tasks: [],
+        daily_tasks: [],
       },
       error: null,
       meta: {},
@@ -124,7 +128,7 @@ export const handlers = [
             completed_at: null,
             status: 'active',
             due_date: '2026-07-30',
-            week_start: '2026-07-28',
+            checkin_date: '2026-07-28',
             checkin_session_id: MOCK_SESSION_ID,
           },
         ],
@@ -169,7 +173,7 @@ export const handlers = [
       success: true,
       data: {
         total_checkins: 3,
-        streak_weeks: 2,
+        streak_days: 2,
         completed_tasks: 5,
         open_tasks: 1,
         capacity_history: [
@@ -273,6 +277,126 @@ export const handlers = [
     })
   }),
 
+  http.get(`${API}/api/v1/institution/overview`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        total_students: 2,
+        checked_in_today: 1,
+        daily_checkin_rate: 0.5,
+        avg_capacity: 57.5,
+        risk_distribution: { green: 1, yellow: 0, red: 1 },
+        trend_7d: [],
+        roi: {
+          prevented_dropouts: 2,
+          protected_revenue: 10000,
+          revenue_per_student: 5000,
+          active_high_risk: 1,
+          total_students: 2,
+        },
+      },
+      error: null,
+      meta: {},
+    })
+  }),
+
+  http.get(`${API}/api/v1/institution/me`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        id: '11111111-1111-1111-1111-111111111201',
+        email: 'coordinator@equa.dev',
+        full_name: 'Coord',
+        role: 'instructor',
+        tenant: {
+          id: '11111111-1111-1111-1111-111111111111',
+          name: 'Equa Demo',
+          slug: 'equa-demo',
+          revenue_per_student: 5000,
+        },
+      },
+      error: null,
+      meta: {},
+    })
+  }),
+
+  http.get(`${API}/api/v1/institution/usage`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        total_students: 2,
+        active_students_7d: 1,
+        adoption_rate_7d: 0.5,
+        total_tasks: 10,
+        completed_tasks: 6,
+        task_completion_rate: 0.6,
+      },
+      error: null,
+      meta: {},
+    })
+  }),
+
+  http.patch(`${API}/api/v1/institution/settings`, async ({ request }) => {
+    const body = (await request.json()) as { revenue_per_student?: number }
+    return HttpResponse.json({
+      success: true,
+      data: {
+        id: '11111111-1111-1111-1111-111111111111',
+        name: 'Equa Demo',
+        slug: 'equa-demo',
+        revenue_per_student: body.revenue_per_student ?? 5000,
+      },
+      error: null,
+      meta: {},
+    })
+  }),
+
+  http.post(`${API}/api/v1/institution/assistant/stream`, async ({ request }) => {
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json(
+        {
+          success: false,
+          data: null,
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required',
+            details: [],
+          },
+          meta: {},
+        },
+        { status: 401 },
+      )
+    }
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder()
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'chunk', data: 'Metrik özeti: ' })}\n\n`,
+          ),
+        )
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'chunk', data: '1 kırmızı risk.' })}\n\n`,
+          ),
+        )
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`),
+        )
+        controller.close()
+      },
+    })
+
+    return new HttpResponse(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+      },
+    })
+  }),
+
   http.post(`${API}/api/v1/chat/stream`, async ({ request }) => {
     const auth = request.headers.get('Authorization')
     if (!auth) {
@@ -338,7 +462,9 @@ export const handlers = [
                 type: 'done',
                 guardrail_triggered: true,
                 guardrail_category: 'critical',
-                weekly_tasks: null,
+                daily_tasks: null,
+                checkin_completed: false,
+                state: null,
               }),
             ),
           )
@@ -359,7 +485,17 @@ export const handlers = [
               type: 'done',
               guardrail_triggered: false,
               guardrail_category: null,
-              weekly_tasks: [...MOCK_WEEKLY_TASKS],
+              daily_tasks: [...MOCK_DAILY_TASKS],
+              checkin_completed: true,
+              state: {
+                enerji: 6,
+                motivasyon: 5,
+                engel: null,
+                yuk: 'orta',
+                hazir: true,
+              },
+              stage: 'completed',
+              turn_count: 4,
             }),
           ),
         )

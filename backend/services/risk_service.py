@@ -1,6 +1,7 @@
 """
 backend/services/risk_service.py
 S17/S22/S25: Risk scoring and institution signals (no raw chat).
+Daily window rules: missed days in last 7 + task completion + capacity.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.models.risk import RiskSignal
-from backend.repositories.checkin_repo import CheckinRepository, WeeklyTaskRepository
+from backend.repositories.checkin_repo import CheckinRepository, DailyTaskRepository
 from backend.repositories.risk_repo import RiskSignalRepository
 from backend.repositories.user_repo import StudentProfileRepository, UserRepository
 
@@ -49,15 +50,87 @@ async def record_high_risk_signal(
     )
 
 
+def derive_risk_level(
+    *,
+    missed_days_7: int,
+    completion_rate: float,
+    capacity: float,
+    energy_avg: float | None = None,
+    motivation_avg: float | None = None,
+    signal_days: int = 0,
+) -> tuple[str, str, dict[str, Any]]:
+    """Pure function: map daily-window metrics → green/yellow/red."""
+    metrics: dict[str, Any] = {
+        "task_completion_rate": round(completion_rate, 2),
+        "capacity_score": capacity,
+        "missed_days_7": missed_days_7,
+    }
+    if energy_avg is not None:
+        metrics["energy_avg"] = energy_avg
+    if motivation_avg is not None:
+        metrics["motivation_avg"] = motivation_avg
+    if signal_days:
+        metrics["signal_days"] = signal_days
+
+    # Red: 5+ missed days in last 7 AND low completion
+    if missed_days_7 >= 5 and completion_rate < 0.3:
+        return (
+            "red",
+            "Son 7 günde check-in kaçırma yüksek ve görev tamamlanma oranı düşük.",
+            metrics,
+        )
+
+    # Red from sustained low energy + motivation (need enough samples)
+    if (
+        signal_days >= 3
+        and energy_avg is not None
+        and motivation_avg is not None
+        and energy_avg <= 3
+        and motivation_avg <= 3
+    ):
+        return (
+            "red",
+            "Son günlerde enerji ve motivasyon sürekli düşük (check-in sinyalleri).",
+            metrics,
+        )
+
+    # Yellow: 3+ missed OR low capacity OR mediocre completion
+    if missed_days_7 >= 3 or capacity < 40 or completion_rate < 0.5:
+        return (
+            "yellow",
+            "Check-in sürekliliği, kapasite veya görevler dikkat gerektiriyor.",
+            metrics,
+        )
+
+    # Yellow from soft energy/motivation signals
+    if signal_days >= 3 and (
+        (energy_avg is not None and energy_avg <= 4)
+        or (motivation_avg is not None and motivation_avg <= 4)
+    ):
+        return (
+            "yellow",
+            "Check-in sinyallerinde düşük enerji veya motivasyon eğilimi var.",
+            metrics,
+        )
+
+    return "green", "Check-in ve görev metrikleri stabil.", metrics
+
+
 async def compute_student_risk(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
+    persist: bool = False,
 ) -> dict[str, Any]:
-    """S22: Derive green/yellow/red from behavioral metrics."""
+    """
+    Derive green/yellow/red from behavioral metrics + check-in signals.
+
+    By default this is a pure read (no DB write). Pass persist=True to
+    store a scoring signal (e.g. from a scheduled job).
+    """
     checkin_repo = CheckinRepository(session)
-    task_repo = WeeklyTaskRepository(session)
+    task_repo = DailyTaskRepository(session)
     profile_repo = StudentProfileRepository(session)
     risk_repo = RiskSignalRepository(session)
 
@@ -69,9 +142,14 @@ async def compute_student_risk(
             "metrics": active.metrics or {},
         }
 
-    current = await checkin_repo.get_current(tenant_id=tenant_id, user_id=user_id)
+    missed_days_7 = await checkin_repo.count_missed_days(
+        tenant_id=tenant_id, user_id=user_id, window_days=7
+    )
     tasks = await task_repo.list_for_user(tenant_id=tenant_id, user_id=user_id)
     profile = await profile_repo.get_by_user_id(user_id)
+    signal_avgs = await checkin_repo.avg_signals_last_days(
+        tenant_id=tenant_id, user_id=user_id, window_days=7
+    )
 
     completed = sum(1 for t in tasks if t.is_completed)
     total = len(tasks)
@@ -81,33 +159,27 @@ async def compute_student_risk(
         if profile and profile.capacity_score is not None
         else 70.0
     )
-    missed_checkin = current is None or current.status == "pending"
 
-    metrics = {
-        "task_completion_rate": round(completion_rate, 2),
-        "capacity_score": capacity,
-        "missed_checkin": missed_checkin,
-        "open_tasks": total - completed,
-    }
-
-    if missed_checkin and completion_rate < 0.3:
-        level = "red"
-        rationale = "Check-in kaçırıldı ve görev tamamlanma oranı düşük."
-    elif capacity < 40 or completion_rate < 0.5:
-        level = "yellow"
-        rationale = "Kapasite düşük veya görevler yarım kaldı."
-    else:
-        level = "green"
-        rationale = "Check-in ve görev metrikleri stabil."
-
-    await risk_repo.create_signal(
-        tenant_id=tenant_id,
-        user_id=user_id,
-        level=level,
-        category="scoring",
-        rationale=rationale,
-        metrics=metrics,
+    level, rationale, metrics = derive_risk_level(
+        missed_days_7=missed_days_7,
+        completion_rate=completion_rate,
+        capacity=capacity,
+        energy_avg=signal_avgs.get("energy_avg"),
+        motivation_avg=signal_avgs.get("motivation_avg"),
+        signal_days=int(signal_avgs.get("signal_days") or 0),
     )
+    metrics["open_tasks"] = total - completed
+
+    if persist:
+        await risk_repo.create_signal(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            level=level,
+            category="scoring",
+            rationale=rationale,
+            metrics=metrics,
+        )
+
     return {"level": level, "rationale": rationale, "metrics": metrics}
 
 
@@ -140,7 +212,6 @@ async def compute_roi(
     )
     all_signals = list(result.scalars().all())
 
-    # Prevented proxy: students who had high_risk/dropout signal but remain enrolled
     high_risk_user_ids = {
         s.user_id
         for s in all_signals

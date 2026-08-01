@@ -13,10 +13,10 @@ from typing import Any
 from fastapi.responses import JSONResponse
 
 
-def ok(data: Any = None, meta: dict = None) -> JSONResponse:
+def ok(data: Any = None, meta: dict = None, *, status_code: int = 200) -> JSONResponse:
     """Başarılı cevap envelope'u döner."""
     return JSONResponse(
-        status_code=200,
+        status_code=status_code,
         content={
             "success": True,
             "data": data if data is not None else {},

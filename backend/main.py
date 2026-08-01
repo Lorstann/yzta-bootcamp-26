@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routes import health, chat, auth, checkins, profiles, institution
 from backend.api.middleware.error_handler import register_error_handlers
+from backend.api.middleware.rate_limit import RateLimitMiddleware
+from backend.config import settings
 from backend.utils.logger import setup_logging
 
 setup_logging()
@@ -23,11 +25,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 register_error_handlers(app)
 

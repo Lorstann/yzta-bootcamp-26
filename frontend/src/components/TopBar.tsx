@@ -1,13 +1,19 @@
 import { Bell, Settings } from 'lucide-react'
 import { Avatar, Button } from '@/components/ui'
+import { getStoredUser } from '@/shared/auth/storage'
 
-function isoWeekLabel(d = new Date()): string {
-  const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  const dayNum = tmp.getUTCDay() || 7
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return `${week}. Hafta`
+function todayDateLabel(d = new Date()): string {
+  return d.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+function avatarInitial(fullName: string | null | undefined, email: string | null | undefined): string {
+  const name = fullName?.trim()
+  if (name) return name.slice(0, 1).toUpperCase()
+  if (email) return email.slice(0, 1).toUpperCase()
+  return '?'
 }
 
 export function TopBar({
@@ -17,6 +23,10 @@ export function TopBar({
   title?: string
   subtitle?: string
 }) {
+  const user = getStoredUser()
+  const initial = avatarInitial(user?.full_name, user?.email)
+  const alt = user?.full_name?.trim() || user?.email || 'Kullanıcı'
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-equa-line/20 bg-equa-bg/60 px-4 backdrop-blur-md lg:px-8">
       <div className="flex min-w-0 items-center gap-4">
@@ -31,7 +41,7 @@ export function TopBar({
           </div>
         ) : (
           <span className="border-b-2 border-equa-primary pb-0.5 text-[12px] font-bold uppercase tracking-wider text-equa-primary">
-            {isoWeekLabel()}
+            {todayDateLabel()}
           </span>
         )}
       </div>
@@ -42,7 +52,7 @@ export function TopBar({
         <Button variant="icon" aria-label="Ayarlar">
           <Settings size={20} />
         </Button>
-        <Avatar alt="Öğrenci" fallback="Ö" size="sm" />
+        <Avatar alt={alt} fallback={initial} size="sm" />
       </div>
     </header>
   )

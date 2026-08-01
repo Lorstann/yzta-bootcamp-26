@@ -16,17 +16,30 @@ class StudentRiskRow(BaseModel):
     user_id: UUID
     full_name: Optional[str] = None
     email: str
-    risk_level: str = "green"
+    risk_level: str
     rationale: Optional[str] = None
-    metrics: Optional[dict[str, Any]] = None
     capacity_score: Optional[float] = None
+    metrics: Optional[dict[str, Any]] = None
+    updated_at: Optional[str] = None
 
 
 class RoiMetrics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    prevented_dropouts: int = 0
-    protected_revenue: float = 0.0
-    revenue_per_student: float = Field(default=5000.0)
-    active_high_risk: int = 0
-    total_students: int = 0
+    prevented_dropouts: int
+    protected_revenue: float
+    revenue_per_student: float
+    active_high_risk: int
+    total_students: int
+
+
+class TenantSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    revenue_per_student: float = Field(gt=0, le=1_000_000)
+
+
+class InstitutionAssistantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=2000)

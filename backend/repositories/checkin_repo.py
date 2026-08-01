@@ -1,6 +1,6 @@
 """
 backend/repositories/checkin_repo.py
-Check-in sessions and weekly tasks persistence.
+Check-in sessions and daily tasks persistence.
 """
 
 from __future__ import annotations
@@ -13,13 +13,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.db.models.checkin import CheckinSession, WeeklyTask
+from backend.db.models.checkin import CheckinSession, DailyTask
 from backend.repositories.base import BaseRepository
 
 
-def week_start_for(d: date | None = None) -> date:
-    today = d or date.today()
-    return today.fromordinal(today.toordinal() - today.weekday())
+def day_for(d: date | None = None) -> date:
+    """Return the calendar day used as the check-in key (today by default)."""
+    return d or date.today()
+
+
+# Backwards-compatible alias
+week_start_for = day_for
 
 
 class CheckinRepository(BaseRepository[CheckinSession]):
@@ -31,14 +35,14 @@ class CheckinRepository(BaseRepository[CheckinSession]):
     async def get_current(
         self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
     ) -> Optional[CheckinSession]:
-        ws = week_start_for()
+        today = day_for()
         stmt = (
             select(CheckinSession)
-            .options(selectinload(CheckinSession.weekly_tasks))
+            .options(selectinload(CheckinSession.daily_tasks))
             .where(
                 CheckinSession.tenant_id == tenant_id,
                 CheckinSession.user_id == user_id,
-                CheckinSession.week_start == ws,
+                CheckinSession.checkin_date == today,
             )
             .order_by(CheckinSession.created_at.desc())
         )
@@ -48,7 +52,7 @@ class CheckinRepository(BaseRepository[CheckinSession]):
     async def get_with_tasks(self, session_id: uuid.UUID) -> Optional[CheckinSession]:
         stmt = (
             select(CheckinSession)
-            .options(selectinload(CheckinSession.weekly_tasks))
+            .options(selectinload(CheckinSession.daily_tasks))
             .where(CheckinSession.id == session_id)
         )
         result = await self.session.execute(stmt)
@@ -59,11 +63,12 @@ class CheckinRepository(BaseRepository[CheckinSession]):
         *,
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
+        checkin_date: date | None = None,
     ) -> CheckinSession:
         row = CheckinSession(
             tenant_id=tenant_id,
             user_id=user_id,
-            week_start=week_start_for(),
+            checkin_date=day_for(checkin_date),
             messages=[],
             status="in_progress",
         )
@@ -108,7 +113,7 @@ class CheckinRepository(BaseRepository[CheckinSession]):
                 CheckinSession.user_id == user_id,
                 CheckinSession.summary.is_not(None),
             )
-            .order_by(CheckinSession.week_start.desc())
+            .order_by(CheckinSession.checkin_date.desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -119,16 +124,16 @@ class CheckinRepository(BaseRepository[CheckinSession]):
         *,
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
-        limit: int = 26,
+        limit: int = 30,
     ) -> list[CheckinSession]:
         stmt = (
             select(CheckinSession)
-            .options(selectinload(CheckinSession.weekly_tasks))
+            .options(selectinload(CheckinSession.daily_tasks))
             .where(
                 CheckinSession.tenant_id == tenant_id,
                 CheckinSession.user_id == user_id,
             )
-            .order_by(CheckinSession.week_start.desc())
+            .order_by(CheckinSession.checkin_date.desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -142,6 +147,80 @@ class CheckinRepository(BaseRepository[CheckinSession]):
         await self.session.flush()
         return session
 
+    async def update_signals(
+        self,
+        session: CheckinSession,
+        *,
+        energy_level: int | None = None,
+        motivation_level: int | None = None,
+        workload_level: str | None = None,
+        main_blocker: str | None = None,
+        stage: str | None = None,
+        turn_count: int | None = None,
+    ) -> CheckinSession:
+        """Persist structured check-in signals / stage (only non-null updates)."""
+        if energy_level is not None:
+            session.energy_level = energy_level
+        if motivation_level is not None:
+            session.motivation_level = motivation_level
+        if workload_level is not None:
+            session.workload_level = workload_level
+        if main_blocker is not None:
+            session.main_blocker = main_blocker
+        if stage is not None:
+            session.stage = stage
+        if turn_count is not None:
+            session.turn_count = turn_count
+        session.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return session
+
+    async def avg_signals_last_days(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        window_days: int = 7,
+    ) -> dict[str, Any]:
+        """
+        Average energy/motivation over sessions in the last `window_days`
+        that have at least one signal set. Returns counts for XAI.
+        """
+        from datetime import timedelta
+
+        today = day_for()
+        start = today - timedelta(days=window_days - 1)
+        stmt = (
+            select(CheckinSession)
+            .where(
+                CheckinSession.tenant_id == tenant_id,
+                CheckinSession.user_id == user_id,
+                CheckinSession.checkin_date >= start,
+                CheckinSession.checkin_date <= today,
+            )
+        )
+        result = await self.session.execute(stmt)
+        sessions = list(result.scalars().all())
+
+        energies = [
+            s.energy_level
+            for s in sessions
+            if getattr(s, "energy_level", None) is not None
+        ]
+        motivations = [
+            s.motivation_level
+            for s in sessions
+            if getattr(s, "motivation_level", None) is not None
+        ]
+        return {
+            "energy_avg": round(sum(energies) / len(energies), 2) if energies else None,
+            "motivation_avg": (
+                round(sum(motivations) / len(motivations), 2) if motivations else None
+            ),
+            "signal_days": max(len(energies), len(motivations)),
+            "sessions_in_window": len(sessions),
+        }
+
     async def count_for_user(
         self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
     ) -> int:
@@ -154,9 +233,34 @@ class CheckinRepository(BaseRepository[CheckinSession]):
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
+    async def count_missed_days(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        window_days: int = 7,
+    ) -> int:
+        """How many of the last `window_days` calendar days lack a check-in."""
+        from datetime import timedelta
 
-class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
-    model = WeeklyTask
+        today = day_for()
+        start = today - timedelta(days=window_days - 1)
+        stmt = (
+            select(CheckinSession.checkin_date)
+            .where(
+                CheckinSession.tenant_id == tenant_id,
+                CheckinSession.user_id == user_id,
+                CheckinSession.checkin_date >= start,
+                CheckinSession.checkin_date <= today,
+            )
+        )
+        result = await self.session.execute(stmt)
+        present = {row[0] for row in result.all()}
+        return window_days - len(present)
+
+
+class DailyTaskRepository(BaseRepository[DailyTask]):
+    model = DailyTask
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
@@ -168,23 +272,24 @@ class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
         titles: list[str],
-    ) -> list[WeeklyTask]:
+    ) -> list[DailyTask]:
         existing = await self.session.execute(
-            select(WeeklyTask).where(
-                WeeklyTask.checkin_session_id == checkin_session_id
+            select(DailyTask).where(
+                DailyTask.checkin_session_id == checkin_session_id
             )
         )
         for row in existing.scalars().all():
             await self.session.delete(row)
 
-        created: list[WeeklyTask] = []
+        created: list[DailyTask] = []
         for title in titles[:3]:
-            task = WeeklyTask(
+            task = DailyTask(
                 checkin_session_id=checkin_session_id,
                 tenant_id=tenant_id,
                 user_id=user_id,
                 title=title.strip(),
                 is_completed=False,
+                due_date=day_for(),
             )
             self.session.add(task)
             created.append(task)
@@ -193,22 +298,37 @@ class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
 
     async def list_for_user(
         self, *, tenant_id: uuid.UUID, user_id: uuid.UUID
-    ) -> list[WeeklyTask]:
+    ) -> list[DailyTask]:
         stmt = (
-            select(WeeklyTask)
-            .options(selectinload(WeeklyTask.checkin_session))
+            select(DailyTask)
+            .options(selectinload(DailyTask.checkin_session))
             .where(
-                WeeklyTask.tenant_id == tenant_id,
-                WeeklyTask.user_id == user_id,
+                DailyTask.tenant_id == tenant_id,
+                DailyTask.user_id == user_id,
             )
-            .order_by(WeeklyTask.created_at.desc())
+            .order_by(DailyTask.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_for_users(
+        self, *, tenant_id: uuid.UUID, user_ids: list[uuid.UUID]
+    ) -> list[DailyTask]:
+        if not user_ids:
+            return []
+        stmt = (
+            select(DailyTask)
+            .where(
+                DailyTask.tenant_id == tenant_id,
+                DailyTask.user_id.in_(user_ids),
+            )
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def set_completed(
-        self, task: WeeklyTask, completed: bool
-    ) -> WeeklyTask:
+        self, task: DailyTask, completed: bool
+    ) -> DailyTask:
         task.is_completed = completed
         task.completed_at = datetime.now(timezone.utc) if completed else None
         await self.session.flush()
@@ -222,10 +342,13 @@ class WeeklyTaskRepository(BaseRepository[WeeklyTask]):
         count = 0
         for task in tasks:
             if not task.is_completed and getattr(task, "status", "active") != "suspended":
-                # Strip legacy prefix if present
                 if task.title.startswith("[ASKIDA] "):
                     task.title = task.title[len("[ASKIDA] ") :]
                 task.status = "suspended"
                 count += 1
         await self.session.flush()
         return count
+
+
+# Backwards-compatible alias
+WeeklyTaskRepository = DailyTaskRepository

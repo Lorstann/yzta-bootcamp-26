@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { apiGet, apiPatch } from '@/shared/api/client'
 import { queryKeys } from '@/shared/api/query-keys'
+import { MoodSelector } from '@/components/MoodSelector'
 import { Badge, Card, ProgressRing } from '@/components/ui'
 
 type Task = {
@@ -13,12 +14,12 @@ type Task = {
 
 type CheckinSession = {
   id: string
-  week_start: string
+  checkin_date: string
   status: string
   summary: string | null
   mood_score?: number | null
   messages: { role: string; content: string }[]
-  weekly_tasks: Task[]
+  daily_tasks: Task[]
 }
 
 export function CheckinPage() {
@@ -26,6 +27,32 @@ export function CheckinPage() {
   const { data: session, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.checkin.current(),
     queryFn: () => apiGet<CheckinSession>('/api/v1/checkins/current'),
+  })
+
+  const moodMutation = useMutation({
+    mutationFn: (mood_score: number) =>
+      apiPatch<CheckinSession>('/api/v1/checkins/current/mood', { mood_score }),
+    onMutate: async (mood_score) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.checkin.current() })
+      const prev = queryClient.getQueryData<CheckinSession>(
+        queryKeys.checkin.current(),
+      )
+      if (prev) {
+        queryClient.setQueryData<CheckinSession>(queryKeys.checkin.current(), {
+          ...prev,
+          mood_score,
+        })
+      }
+      return { prev }
+    },
+    onError: (_err, _score, ctx) => {
+      if (ctx?.prev) {
+        queryClient.setQueryData(queryKeys.checkin.current(), ctx.prev)
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.checkin.current(), data)
+    },
   })
 
   const toggleMutation = useMutation({
@@ -41,7 +68,7 @@ export function CheckinPage() {
       if (prev) {
         queryClient.setQueryData<CheckinSession>(queryKeys.checkin.current(), {
           ...prev,
-          weekly_tasks: prev.weekly_tasks.map((t) =>
+          daily_tasks: prev.daily_tasks.map((t) =>
             t.id === task.id ? { ...t, is_completed: !t.is_completed } : t,
           ),
         })
@@ -81,26 +108,42 @@ export function CheckinPage() {
 
   if (!session) return null
 
-  const hasSuspended = session.weekly_tasks?.some((t) => t.status === 'suspended')
-  const done = session.weekly_tasks?.filter((t) => t.is_completed).length ?? 0
-  const total = session.weekly_tasks?.length ?? 0
+  const hasSuspended = session.daily_tasks?.some((t) => t.status === 'suspended')
+  const done = session.daily_tasks?.filter((t) => t.is_completed).length ?? 0
+  const total = session.daily_tasks?.length ?? 0
   const pct = total ? Math.round((done / total) * 100) : 0
+  const mood = session.mood_score ?? null
+  const moodError = moodMutation.isError
+    ? 'Ruh hali kaydedilemedi. Tekrar dene.'
+    : null
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
         <h1 className="font-display text-lg font-semibold text-equa-ink lg:text-xl">
-          Haftalık check-in
+          Günlük check-in
         </h1>
         <p className="mt-1 text-sm text-equa-muted">
-          Hafta başlangıcı: {session.week_start} · Durum: {session.status}
+          Tarih: {session.checkin_date} · Durum: {session.status}
         </p>
       </div>
+
+      <Card className="p-6">
+        <p className="text-[12px] font-bold uppercase tracking-wider text-equa-muted">
+          Ruh hali
+        </p>
+        <MoodSelector
+          value={mood}
+          onSelect={(score) => moodMutation.mutate(score)}
+          disabled={moodMutation.isPending}
+          error={moodError}
+        />
+      </Card>
 
       {total > 0 ? (
         <Card className="flex items-center gap-6 p-6">
           <ProgressRing value={pct} label={`${done}/${total}`} size={100} />
-          <p className="text-sm text-equa-muted">Bu haftanın görev ilerlemesi</p>
+          <p className="text-sm text-equa-muted">Bugünün görev ilerlemesi</p>
         </Card>
       ) : null}
 
@@ -109,7 +152,7 @@ export function CheckinPage() {
           className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200"
           role="status"
         >
-          Bu hafta yükünü azalttım — bazı görevler askıya alındı. Kapasiten
+          Bugün yükünü azalttım — bazı görevler askıya alındı. Kapasiten
           yükseldikçe yeniden açabiliriz.
         </p>
       ) : null}
@@ -117,7 +160,7 @@ export function CheckinPage() {
       <div className="space-y-3">
         {(session.messages || []).length === 0 ? (
           <p className="text-sm text-equa-muted">
-            Bu hafta henüz check-in yok.{' '}
+            Bugün henüz check-in yok.{' '}
             <Link to="/chat" className="text-equa-primary underline">
               Sohbete git
             </Link>
@@ -139,13 +182,13 @@ export function CheckinPage() {
         )}
       </div>
 
-      {session.weekly_tasks?.length ? (
+      {session.daily_tasks?.length ? (
         <div>
           <h2 className="font-display text-base font-semibold text-equa-ink">
             Görevler
           </h2>
           <ul className="mt-3 space-y-2">
-            {session.weekly_tasks.map((task) => (
+            {session.daily_tasks.map((task) => (
               <li key={task.id}>
                 <label className="flex min-h-11 items-start gap-2 rounded-xl border border-equa-line/20 bg-equa-surface/50 px-3 py-3 text-sm">
                   <input

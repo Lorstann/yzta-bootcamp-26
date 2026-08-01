@@ -1,6 +1,12 @@
 import { getApiBaseUrl } from '@/shared/api/config'
 import { ApiClientError } from '@/shared/api/envelope'
-import { authHeaders, clearAuth, setAuth, type AuthUser } from '@/shared/auth/storage'
+import {
+  authHeaders,
+  clearAuth,
+  getStoredUser,
+  setAuth,
+  type AuthUser,
+} from '@/shared/auth/storage'
 
 type AuthResponse = {
   access_token: string
@@ -8,12 +14,24 @@ type AuthResponse = {
   user: AuthUser
 }
 
-function handleUnauthorized(status: number): void {
+function homeForRole(role?: string): string {
+  return role === 'student' ? '/dashboard' : '/institution'
+}
+
+function handleAuthErrors(status: number): void {
   if (status === 401) {
     clearAuth()
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
       const next = `${window.location.pathname}${window.location.search}`
       window.location.href = `/login?next=${encodeURIComponent(next)}`
+    }
+    return
+  }
+  if (status === 403 && typeof window !== 'undefined') {
+    const role = getStoredUser()?.role
+    const home = homeForRole(role)
+    if (!window.location.pathname.startsWith(home)) {
+      window.location.href = home
     }
   }
 }
@@ -62,7 +80,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok || !json.success) {
-    handleUnauthorized(res.status)
+    handleAuthErrors(res.status)
     throw new ApiClientError(json.error?.message ?? 'Request failed', {
       code: json.error?.code ?? 'HTTP_ERROR',
       status: res.status,
@@ -83,7 +101,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok || !json.success) {
-    handleUnauthorized(res.status)
+    handleAuthErrors(res.status)
     throw new ApiClientError(json.error?.message ?? 'Request failed', {
       code: json.error?.code ?? 'HTTP_ERROR',
       status: res.status,
@@ -100,7 +118,7 @@ export async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok || !json.success) {
-    handleUnauthorized(res.status)
+    handleAuthErrors(res.status)
     throw new ApiClientError(json.error?.message ?? 'Upload failed', {
       code: json.error?.code ?? 'HTTP_ERROR',
       status: res.status,

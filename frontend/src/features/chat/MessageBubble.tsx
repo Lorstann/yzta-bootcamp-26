@@ -1,13 +1,12 @@
 import { Bot } from 'lucide-react'
 import type { ChatMessage } from './types'
-import { AiChip, Avatar } from '@/components/ui'
+import { Avatar } from '@/components/ui'
 
 type MessageBubbleProps = {
   message: ChatMessage
-  showAiChip?: boolean
 }
 
-export function MessageBubble({ message, showAiChip }: MessageBubbleProps) {
+export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -41,11 +40,6 @@ export function MessageBubble({ message, showAiChip }: MessageBubbleProps) {
             className="ml-0.5 inline-block h-3.5 w-1 animate-pulse bg-equa-primary/60 align-middle"
             aria-hidden="true"
           />
-        ) : null}
-        {showAiChip && !isUser && !message.streaming ? (
-          <div className="mt-3">
-            <AiChip />
-          </div>
         ) : null}
       </div>
     </div>

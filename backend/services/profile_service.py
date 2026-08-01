@@ -92,17 +92,17 @@ async def update_onboarding(
     return to_public_profile(profile)
 
 
-def _compute_streak(week_starts: list) -> int:
-    """Count consecutive ISO weeks ending at the most recent week_start."""
-    if not week_starts:
+def _compute_streak(checkin_dates: list) -> int:
+    """Count consecutive calendar days ending at the most recent checkin_date."""
+    if not checkin_dates:
         return 0
     from datetime import timedelta
 
-    sorted_weeks = sorted(set(week_starts), reverse=True)
+    sorted_days = sorted(set(checkin_dates), reverse=True)
     streak = 1
-    for i in range(len(sorted_weeks) - 1):
-        expected = sorted_weeks[i] - timedelta(days=7)
-        if sorted_weeks[i + 1] == expected:
+    for i in range(len(sorted_days) - 1):
+        expected = sorted_days[i] - timedelta(days=1)
+        if sorted_days[i + 1] == expected:
             streak += 1
         else:
             break
@@ -126,13 +126,13 @@ async def get_profile_stats(
         tenant_id=tenant_id, user_id=user_id
     )
     history = await checkin_repo.list_history(
-        tenant_id=tenant_id, user_id=user_id, limit=52
+        tenant_id=tenant_id, user_id=user_id, limit=365
     )
-    streak = _compute_streak([s.week_start for s in history])
+    streak = _compute_streak([s.checkin_date for s in history])
     tasks = await task_repo.list_for_user(tenant_id=tenant_id, user_id=user_id)
     completed_tasks = sum(1 for t in tasks if t.is_completed)
     snapshots = await snap_repo.list_for_user(
-        tenant_id=tenant_id, user_id=user_id, limit=26
+        tenant_id=tenant_id, user_id=user_id, limit=30
     )
     capacity_history = [
         {
@@ -150,7 +150,7 @@ async def get_profile_stats(
     )
     return {
         "total_checkins": total_checkins,
-        "streak_weeks": streak,
+        "streak_days": streak,
         "completed_tasks": completed_tasks,
         "open_tasks": sum(1 for t in tasks if not t.is_completed),
         "capacity_history": capacity_history,

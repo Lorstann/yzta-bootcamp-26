@@ -1,6 +1,6 @@
 """
 backend/api/controllers/chat_controller.py
-B5/A7: Chat SSE + RAG context inject + check-in persist.
+B5/A7: Chat SSE + RAG context inject + check-in persist + history replay.
 """
 
 from __future__ import annotations
@@ -20,6 +20,11 @@ from backend.domain.schemas.chat import ChatRequest
 from backend.repositories.checkin_repo import CheckinRepository
 from backend.repositories.user_repo import StudentProfileRepository
 from backend.services.chat_service import stream_chat_response
+from backend.services.checkin_flow import (
+    HISTORY_WINDOW,
+    next_stage,
+    state_from_session,
+)
 from backend.services.checkin_service import persist_turn_and_tasks
 from backend.services.rag.retrieve import retrieve_curriculum_context
 from backend.services.risk_service import record_high_risk_signal
@@ -41,19 +46,32 @@ async def _build_memory_context(
     return "Geçmiş check-in özetleri:\n" + "\n".join(f"- {s}" for s in summaries)
 
 
-async def _assert_session_owned(
+async def _load_owned_session(
     db: AsyncSession,
     *,
     session_id: uuid.UUID,
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> None:
+):
     repo = CheckinRepository(db)
     session = await repo.get_with_tasks(session_id)
     if session is None:
         raise AppError("Check-in session not found", code="NOT_FOUND", status_code=404)
     if session.tenant_id != tenant_id or session.user_id != user_id:
         raise AppError("Forbidden", code="FORBIDDEN", status_code=403)
+    return session
+
+
+def _history_window(messages: list | None) -> list[dict]:
+    """Last N turns for LLM context (token control)."""
+    rows = list(messages or [])
+    if len(rows) > HISTORY_WINDOW:
+        rows = rows[-HISTORY_WINDOW:]
+    return [
+        {"role": m.get("role"), "content": m.get("content", "")}
+        for m in rows
+        if isinstance(m, dict) and m.get("content")
+    ]
 
 
 async def _event_generator(
@@ -66,16 +84,26 @@ async def _event_generator(
     full_parts: list[str] = []
     curriculum_context = ""
     memory_context = ""
+    history: list[dict] = []
+    state: dict = {}
+    turn_count = 0
+    stage = "opening"
 
     async with AsyncSessionLocal() as db:
         try:
             await apply_tenant_context(db, tenant_id)
-            await _assert_session_owned(
+            session = await _load_owned_session(
                 db,
                 session_id=request.session_id,
                 tenant_id=tenant_id,
                 user_id=user_id,
             )
+            history = _history_window(session.messages)
+            state = dict(state_from_session(session))
+            turn_count = int(getattr(session, "turn_count", None) or 0)
+            # Always derive from signals so known Qs are never re-asked
+            stage = next_stage(state, turn_count)
+
             curriculum_context = await retrieve_curriculum_context(
                 db, tenant_id=tenant_id, query=request.message, top_k=4
             )
@@ -90,9 +118,7 @@ async def _event_generator(
             await db.rollback()
             logger.error("RAG retrieve failed: %s", exc)
 
-    combined_context = "\n\n".join(
-        p for p in (curriculum_context, memory_context) if p
-    )
+    combined_context = curriculum_context or ""
 
     capacity = None
     async with AsyncSessionLocal() as db:
@@ -110,17 +136,34 @@ async def _event_generator(
     async for event in stream_chat_response(
         message=request.message,
         curriculum_context=combined_context or "",
+        history=history,
+        state=state,
+        turn_count=turn_count,
+        stage=stage,
+        memory_context=memory_context,
     ):
         if event.get("type") == "chunk":
             full_parts.append(event.get("data", ""))
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         elif event.get("type") == "done":
-            tasks = event.get("weekly_tasks")
+            tasks = event.get("daily_tasks")
             if tasks:
+                energy = (event.get("state") or {}).get("enerji")
+                effective_capacity = capacity
+                if energy is not None and int(energy) <= 4:
+                    effective_capacity = min(
+                        float(capacity) if capacity is not None else 40.0, 35.0
+                    )
                 event = {
                     **event,
-                    "weekly_tasks": limit_tasks(tasks, capacity),
+                    "daily_tasks": limit_tasks(tasks, effective_capacity),
                 }
+            # Ensure frontend fields are always present
+            event = {
+                **event,
+                "checkin_completed": bool(event.get("checkin_completed")),
+                "state": event.get("state") or state,
+            }
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
             assistant_text = "".join(full_parts)
@@ -142,7 +185,11 @@ async def _event_generator(
                             user_id=user_id,
                             user_message=request.message,
                             assistant_message=assistant_text,
-                            weekly_tasks=event.get("weekly_tasks"),
+                            daily_tasks=event.get("daily_tasks"),
+                            state=event.get("state"),
+                            stage=event.get("stage"),
+                            turn_count=event.get("turn_count"),
+                            checkin_completed=bool(event.get("checkin_completed")),
                         )
                     await db.commit()
                 except Exception as exc:
@@ -161,7 +208,7 @@ async def chat_stream(
     async with AsyncSessionLocal() as db:
         try:
             await apply_tenant_context(db, user.tenant_id)
-            await _assert_session_owned(
+            await _load_owned_session(
                 db,
                 session_id=request.session_id,
                 tenant_id=user.tenant_id,

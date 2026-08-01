@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { streamChat } from './chat'
 import { getHealth } from './health'
-import { MOCK_CHAT_CHUNKS, MOCK_WEEKLY_TASKS } from '../../mocks/data/chat-fixtures'
+import { MOCK_CHAT_CHUNKS, MOCK_DAILY_TASKS } from '../../mocks/data/chat-fixtures'
 
 describe('API client with MSW', () => {
   it('getHealth returns envelope data', async () => {
@@ -23,12 +23,12 @@ describe('API client with MSW', () => {
         chunks.push(event.data)
       }
       if (event.type === 'done') {
-        doneTasks = event.weekly_tasks
+        doneTasks = event.daily_tasks
       }
     }
 
     expect(chunks).toEqual([...MOCK_CHAT_CHUNKS])
-    expect(doneTasks).toEqual([...MOCK_WEEKLY_TASKS])
+    expect(doneTasks).toEqual([...MOCK_DAILY_TASKS])
   })
 
   it('streamChat surfaces SSE error events for message "error"', async () => {

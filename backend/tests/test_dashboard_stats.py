@@ -7,18 +7,18 @@ import pytest
 from backend.services.profile_service import _compute_streak
 
 
-def test_compute_streak_consecutive_weeks():
-    w0 = date(2026, 7, 27)
-    w1 = w0 - timedelta(days=7)
-    w2 = w1 - timedelta(days=7)
-    assert _compute_streak([w0, w1, w2]) == 3
+def test_compute_streak_consecutive_days():
+    d0 = date(2026, 7, 27)
+    d1 = d0 - timedelta(days=1)
+    d2 = d1 - timedelta(days=1)
+    assert _compute_streak([d0, d1, d2]) == 3
 
 
 def test_compute_streak_broken():
-    w0 = date(2026, 7, 27)
-    w1 = w0 - timedelta(days=7)
-    w3 = w0 - timedelta(days=21)
-    assert _compute_streak([w0, w1, w3]) == 2
+    d0 = date(2026, 7, 27)
+    d1 = d0 - timedelta(days=1)
+    d3 = d0 - timedelta(days=3)
+    assert _compute_streak([d0, d1, d3]) == 2
 
 
 def test_compute_streak_empty():
@@ -46,3 +46,9 @@ def test_capacity_snapshot_model_importable():
 
     assert CapacitySnapshot.__tablename__ == "capacity_snapshots"
     assert hasattr(CapacitySnapshot, "score")
+
+
+def test_daily_task_model_tablename():
+    from backend.db.models import DailyTask
+
+    assert DailyTask.__tablename__ == "daily_tasks"
