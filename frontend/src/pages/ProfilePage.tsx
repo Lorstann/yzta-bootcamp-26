@@ -22,6 +22,9 @@ import { clearAuth } from '@/shared/auth/storage'
 type Profile = {
   user_id: string
   capacity_score: number | null
+  capacity_source?: string | null
+  capacity_factors?: Record<string, unknown> | null
+  capacity_updated_at?: string | null
   bio: string | null
   competencies: Record<string, unknown> | null
   city: string | null
@@ -40,7 +43,14 @@ type ProfileStats = {
   streak_days: number
   completed_tasks: number
   open_tasks: number
-  capacity_history: Array<{ score: number; recorded_at: string }>
+  capacity_history: Array<{
+    score: number
+    recorded_at: string
+    source?: string
+    factors?: Record<string, unknown> | null
+  }>
+  capacity_factors?: Record<string, unknown> | null
+  capacity_updated_at?: string | null
 }
 
 const TRACK_OPTIONS = [
@@ -77,7 +87,6 @@ const RECHARGE_OPTIONS = [
 ]
 
 const profileSchema = z.object({
-  capacity: z.number().min(0, '0–100 arası').max(100, '0–100 arası'),
   bio: z.string().max(2000).optional(),
   city: z.string().max(120).optional(),
   district: z.string().max(120).optional(),
@@ -85,6 +94,33 @@ const profileSchema = z.object({
 })
 
 type ProfileForm = z.infer<typeof profileSchema>
+
+const FACTOR_LABELS: Record<string, string> = {
+  enerji: 'Enerji',
+  motivasyon: 'Motivasyon',
+  yuk: 'İş yükü',
+  gorev_tamamlama: 'Görev tamamlama',
+  sureklilik: 'Süreklilik',
+  acik_gorev: 'Açık görevler',
+  onboarding_stres: 'Stres',
+  seviye: 'Seviye',
+  mufredat_yuku: 'Müfredat yükü',
+  llm_delta: 'Bağlam düzeltmesi',
+}
+
+function formatFactors(factors: Record<string, unknown> | null | undefined): string[] {
+  if (!factors) return []
+  const skip = new Set(['base', 'w_behavior', 'raw_score', 'previous_score', 'llm_neden'])
+  return Object.entries(factors)
+    .filter(([k, v]) => !skip.has(k) && typeof v === 'number' && v !== 0)
+    .sort((a, b) => Math.abs(b[1] as number) - Math.abs(a[1] as number))
+    .slice(0, 5)
+    .map(([k, v]) => {
+      const n = v as number
+      const sign = n > 0 ? '+' : ''
+      return `${FACTOR_LABELS[k] ?? k} ${sign}${n.toFixed(0)}`
+    })
+}
 
 function skillChips(competencies: Record<string, unknown> | null): string[] {
   if (!competencies) return []
@@ -121,7 +157,6 @@ export function ProfilePage() {
   const form = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
     values: {
-      capacity: profile?.capacity_score ?? 70,
       bio: profile?.bio ?? '',
       city: profile?.city ?? '',
       district: profile?.district ?? '',
@@ -139,7 +174,6 @@ export function ProfilePage() {
   const saveMutation = useMutation({
     mutationFn: (values: ProfileForm) =>
       apiPatch<Profile>('/api/v1/profiles/me/onboarding', {
-        capacity_score: values.capacity,
         bio: values.bio || null,
         city: values.city || null,
         district: values.district || null,
@@ -239,6 +273,11 @@ export function ProfilePage() {
   const chips = skillChips(profile.competencies)
   const capacity = profile.capacity_score ?? 0
   const history = stats?.capacity_history ?? []
+  const factors =
+    profile.capacity_factors ??
+    stats?.capacity_factors ??
+    (history.length ? history[history.length - 1]?.factors : null)
+  const factorLines = formatFactors(factors)
   const maxScore = Math.max(100, ...history.map((h) => h.score), capacity)
   const pathPoints = history.length
     ? history
@@ -307,8 +346,32 @@ export function ProfilePage() {
             >
               <ProgressBar value={capacity} />
             </div>
-            <p className="mt-1 text-xs text-equa-muted">{capacity}/100</p>
+            <p className="mt-1 text-xs text-equa-muted">
+              {capacity}/100
+              {profile.capacity_source
+                ? ` · sistem (${profile.capacity_source})`
+                : ' · sistem hesaplı'}
+            </p>
           </div>
+          {factorLines.length > 0 ? (
+            <ul
+              className="mt-3 flex flex-wrap gap-2"
+              aria-label="Kapasite faktörleri"
+            >
+              {factorLines.map((line) => (
+                <li
+                  key={line}
+                  className="rounded-full bg-equa-accent-soft px-2.5 py-1 text-xs font-medium text-equa-primary"
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-equa-muted">
+              Check-in yaptıkça skorun nedeni burada görünür.
+            </p>
+          )}
           {pathPoints ? (
             <svg
               viewBox="0 0 300 100"
@@ -330,7 +393,7 @@ export function ProfilePage() {
             </svg>
           ) : (
             <p className="mt-4 text-sm text-equa-muted">
-              Kapasite geçmişi henüz yok — kaydettikçe grafik oluşur.
+              Kapasite geçmişi henüz yok — check-in yaptıkça grafik oluşur.
             </p>
           )}
         </Card>
@@ -366,24 +429,6 @@ export function ProfilePage() {
         onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
         className="space-y-4"
       >
-        <div>
-          <label htmlFor="capacity" className="text-sm font-medium text-equa-ink">
-            Kapasite skoru (0–100)
-          </label>
-          <Input
-            id="capacity"
-            type="number"
-            min={0}
-            max={100}
-            className="mt-1"
-            {...form.register('capacity', { valueAsNumber: true })}
-          />
-          {form.formState.errors.capacity ? (
-            <p className="mt-1 text-sm text-red-300" role="alert">
-              {form.formState.errors.capacity.message}
-            </p>
-          ) : null}
-        </div>
         <div>
           <label htmlFor="program_track" className="text-sm font-medium text-equa-ink">
             Program

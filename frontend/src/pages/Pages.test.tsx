@@ -109,8 +109,8 @@ describe('LandingPage', () => {
   it('renders hero copy', async () => {
     const { LandingPage } = await import('@/pages/LandingPage')
     wrap(<LandingPage />)
-    expect(screen.getByText(/hep yanında/i)).toBeInTheDocument()
-    expect(screen.getByText(/Ücretsiz Başla/i)).toBeInTheDocument()
+    expect(screen.getByText(/Kapasiteni aşmadan ilerle/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^Başla$/i })).toBeInTheDocument()
   })
 })
 

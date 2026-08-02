@@ -29,13 +29,14 @@ async def update_onboarding(
     data = await profile_service.update_onboarding(
         db,
         user_id=user.id,
-        capacity_score=body.capacity_score,
         bio=body.bio,
         onboarding_completed=body.onboarding_completed,
         city=body.city,
         district=body.district,
         program_track=body.program_track,
         interests=body.interests,
+        self_reported_stress=body.self_reported_stress,
+        weekly_available_hours=body.weekly_available_hours,
     )
     return ok(data=data)
 

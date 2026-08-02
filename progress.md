@@ -147,7 +147,9 @@
 - AI Agent görevleri (A3–A7), Backend streaming endpoint (B5) hazır olduktan sonra entegre edilir.
 - Database RLS (D8) tamamlanmadan multi-tenant özellikler production'a alınmamalıdır (AC4).
 
-**Son güncelleme:** 1 Ağustos 2026
+**Son güncelleme:** 2 Ağustos 2026
+
+- **Otomatik kapasite skoru (hibrit):** Kullanıcı elle skor girmiyor; deterministik motor (enerji/motivasyon/yük, görev tamamlama, kaçırılan günler, onboarding stresi, yetkinlik seviyesi, müfredat `weekly_hours`) + LLM `[DURUM].kapasite_delta` (±15) + EMA/±20 günlük sınır. Alembic 013; onboarding/profil UI temizlendi; faktör kırılımı profilde. pytest 181, Vitest 21 yeşil.
 
 - **Kişiselleştirilmiş burnout koçu:** Onboarding/profil'e şehir, ilçe, program_track, interests (hobi/şarj); Alembic 012; `wellbeing.py` burnout bandı + prompt context; ton yasağı ("Duyduğum şu" vb.) + `opener_hint` rotasyonu; `[PROFIL]` sessiz öğrenme (kullanıcı alanını ezmez); görevler `başlık | detay` + description persist; müfredatsız teknik görev filtresi düzeltildi; jenerik görev yumuşak eleme; SSE daily_tasks obje listesi. pytest 149, Vitest 21 yeşil.
 - **Kapsam kilidi (scope guard):** Hibrit off-topic engeli — hızlı deny/allow desenleri + kararsızlarda LLM IN/OUT sınıflandırıcı (timeout/hata fail-open); leisure→aktivite reframing, hard→kısa red; `off_topic` SSE alanı risk sinyalinden ayrı; check-in turu artmaz; prompt KAPSAM bloğu (aktivite evet / içerik hayır). `SCOPE_CLASSIFIER_ENABLED` ile kapatılabilir. pytest 165, Vitest 21 yeşil.

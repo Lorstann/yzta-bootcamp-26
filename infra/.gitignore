@@ -1,0 +1,13 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# Local deploy / demo secrets (do not commit)
+login-*.json
+cdk-outputs.json
+video-seed-logs.json

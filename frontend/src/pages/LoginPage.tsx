@@ -2,9 +2,10 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import logo from '@/assets/brand/logo.png'
+import { Button, GlassPanel, Input } from '@/components/ui'
 import { login } from '@/shared/api/client'
 import { getAccessToken } from '@/shared/auth/storage'
-import { Button, GlassPanel, Input } from '@/components/ui'
 
 const loginSchema = z.object({
   tenant_slug: z.string().min(2, 'Kurum slug gerekli'),
@@ -66,15 +67,27 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-full max-w-md flex-col justify-center px-4 py-10">
-      <div className="pointer-events-none absolute top-[-10%] left-[-20%] h-64 w-64 rounded-full bg-equa-primary/20 blur-[100px]" />
+    <div className="relative flex min-h-full flex-col justify-center px-4 py-10">
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: 'url(/images/auth-bg.png)' }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-equa-bg/80 backdrop-blur-[2px]"
+        aria-hidden
+      />
+      <div className="relative z-10 mx-auto w-full max-w-md">
       <GlassPanel className="relative z-10 p-8">
-        <Link to="/" className="no-underline">
-          <h1 className="bg-gradient-to-r from-equa-primary to-equa-tertiary bg-clip-text font-display text-3xl font-extrabold text-transparent">
-            Equa
-          </h1>
+        <Link to="/" className="inline-block no-underline">
+          <img
+            src={logo}
+            alt="Equa"
+            className="h-9 w-auto object-contain"
+            decoding="async"
+          />
         </Link>
-        <p className="mt-1 text-sm text-equa-muted">Hesabına giriş yap</p>
+        <p className="mt-3 text-sm text-equa-muted">Hesabına giriş yap</p>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -141,6 +154,7 @@ export function LoginPage() {
           password123
         </p>
       </GlassPanel>
+      </div>
     </div>
   )
 }

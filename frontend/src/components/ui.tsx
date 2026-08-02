@@ -372,13 +372,25 @@ export function EmptyState({
   title,
   description,
   action,
+  image,
+  imageAlt = '',
 }: {
   title: string
   description?: string
   action?: ReactNode
+  image?: string
+  imageAlt?: string
 }) {
   return (
     <div className="flex min-h-[10rem] flex-col items-center justify-center text-center">
+      {image ? (
+        <img
+          src={image}
+          alt={imageAlt}
+          className="mb-4 h-28 w-auto max-w-[12rem] object-contain"
+          decoding="async"
+        />
+      ) : null}
       <p className="font-display text-base font-medium text-equa-ink">{title}</p>
       {description ? (
         <p className="mt-2 max-w-xs text-sm text-equa-muted">{description}</p>

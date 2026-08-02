@@ -53,6 +53,8 @@ class CheckinState(TypedDict, total=False):
     engel: Optional[str]
     yuk: Optional[str]
     hazir: bool
+    kapasite_delta: Optional[float]
+    kapasite_neden: Optional[str]
 
 
 def empty_state() -> CheckinState:
@@ -62,6 +64,8 @@ def empty_state() -> CheckinState:
         "engel": None,
         "yuk": None,
         "hazir": False,
+        "kapasite_delta": None,
+        "kapasite_neden": None,
     }
 
 
@@ -136,11 +140,16 @@ def coerce_scale(kind: ScaleKind, value: Any) -> int | None:
     return None
 
 
-def default_quick_replies(stage: Stage | str) -> list[str]:
+def default_quick_replies(
+    stage: Stage | str,
+    state: CheckinState | None = None,
+) -> list[str]:
     """Deterministic chip suggestions when the LLM omits [SECENEKLER]."""
     if stage == "opening":
         return list(ENERGY_CHOICES.keys())
     if stage == "explore":
+        if state is None or state.get("motivasyon") is None:
+            return list(MOTIVATION_CHOICES.keys())
         return list(_EXPLORE_REPLIES)
     if stage == "focus":
         return [
@@ -168,7 +177,7 @@ def merge_state(current: CheckinState, incoming: CheckinState | None) -> Checkin
     if not incoming:
         return dict(current)  # type: ignore[return-value]
     merged: CheckinState = dict(current)  # type: ignore[assignment]
-    for key in ("enerji", "motivasyon", "engel", "yuk"):
+    for key in ("enerji", "motivasyon", "engel", "yuk", "kapasite_delta", "kapasite_neden"):
         val = incoming.get(key)  # type: ignore[literal-required]
         if val is not None and val != "":
             merged[key] = val  # type: ignore[literal-required]
@@ -181,8 +190,9 @@ def next_stage(state: CheckinState, turn_count: int) -> Stage:
     """
     Advance stage from known signals + turn count.
 
-    - energy + motivation known → skip opening
-    - blocker known → skip explore
+    - energy unknown → opening
+    - energy known, motivation/blocker incomplete → explore
+    - blocker known → focus
     - turn_count >= SOFT_CLOSE_TURN or hazir → closing
     - turn_count >= MAX_TURNS → completed
     """
@@ -197,13 +207,31 @@ def next_stage(state: CheckinState, turn_count: int) -> Stage:
     if turn_count >= SOFT_CLOSE_TURN or hazir:
         return "closing"
 
-    if energy is None or motivation is None:
+    if energy is None:
         return "opening"
 
-    if not blocker:
+    if motivation is None or not blocker:
         return "explore"
 
     return "focus"
+
+
+def apply_user_scale_signals(message: str, state: CheckinState) -> CheckinState:
+    """
+    Stamp chip / label answers from the user turn into state before prompting.
+    One scale per turn: prefer energy if still unknown, else motivation.
+    """
+    updated: CheckinState = dict(state)  # type: ignore[assignment]
+    if updated.get("enerji") is None:
+        energy = score_from_label("enerji", message)
+        if energy is not None:
+            updated["enerji"] = energy
+            return updated
+    if updated.get("motivasyon") is None:
+        motivation = score_from_label("motivasyon", message)
+        if motivation is not None:
+            updated["motivasyon"] = motivation
+    return updated
 
 
 def should_force_complete(turn_count: int, daily_tasks: list[str] | None) -> bool:
@@ -247,11 +275,13 @@ def stage_instruction(stage: Stage) -> str:
         )
     if stage == "explore":
         return (
-            "Enerji/motivasyonu zaten biliyorsun — ASLA tekrar sorma. "
-            "Kısa empati kur, sonra bugün veya dünden aklında kalan "
-            "en zorlayıcı konuyu / engeli sor. "
-            "Motivasyon henüz yoksa etiketlerle sor: "
-            f"{motivation_labels}."
+            "Enerji seviyesini zaten biliyorsun — ASLA tekrar sorma. "
+            "Önce 1 kısa empati cümlesi kur, sonra MUTLAKA bir soru sor "
+            "(sadece empatiyle bitirme): "
+            f"- Motivasyon henüz yoksa şu etiketlerle sor: {motivation_labels}. "
+            "  Yanıtında [SECENEKLER] bloğunda motivasyon etiketlerini listele. "
+            "- Motivasyon varsa bugün veya dünden aklında kalan en zorlayıcı "
+            "konuyu / engeli sor; [SECENEKLER] ile chip öner."
         )
     if stage == "focus":
         return (

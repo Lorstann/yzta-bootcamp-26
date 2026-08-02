@@ -2,6 +2,7 @@
 backend/api/controllers/checkin_controller.py
 """
 
+import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,8 @@ from backend.domain.schemas.checkin import MoodUpdateRequest, TaskCompleteReques
 from backend.repositories.checkin_repo import DailyTaskRepository
 from backend.services import checkin_service
 from backend.utils.response import ok
+
+logger = logging.getLogger(__name__)
 
 
 async def get_current_checkin(db: AsyncSession, user: CurrentUser):
@@ -32,6 +35,23 @@ async def complete_task(
     if task is None or task.user_id != user.id:
         raise AppError("Task not found", code="NOT_FOUND", status_code=404)
     updated = await repo.set_completed(task, body.is_completed)
+
+    from backend.services.capacity_service import recompute_for_user
+
+    try:
+        await recompute_for_user(
+            db,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            source="task",
+        )
+    except Exception as exc:
+        logger.error(
+            "Capacity recompute after task failed | user_id=%s err=%s",
+            user.id,
+            exc,
+        )
+
     return ok(
         data={
             "id": str(updated.id),

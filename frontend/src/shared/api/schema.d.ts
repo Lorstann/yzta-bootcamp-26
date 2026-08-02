@@ -468,7 +468,12 @@ export interface components {
                 score?: number;
                 /** Format: date-time */
                 recorded_at?: string;
+                source?: string;
+                factors?: Record<string, unknown> | null;
             }[];
+            capacity_factors?: Record<string, unknown> | null;
+            /** Format: date-time */
+            capacity_updated_at?: string | null;
         };
         ProfileStatsResponse: components["schemas"]["SuccessEnvelope"] & {
             data?: components["schemas"]["ProfileStatsOut"];
@@ -476,18 +481,42 @@ export interface components {
         ProfileOut: {
             /** Format: uuid */
             user_id: string;
+            /** System-computed capacity score (read-only) */
             capacity_score?: number | null;
+            capacity_source?: string | null;
+            capacity_factors?: Record<string, unknown> | null;
+            /** Format: date-time */
+            capacity_updated_at?: string | null;
+            self_reported_stress?: number | null;
+            weekly_available_hours?: number | null;
             linkedin_url?: string | null;
             bio?: string | null;
             competencies?: Record<string, never> | null;
+            city?: string | null;
+            district?: string | null;
+            program_track?: string | null;
+            interests?: {
+                hobbies?: string[];
+                recharge?: string[];
+                notes?: string[];
+            } | null;
             onboarding_completed: boolean;
         };
         ProfileResponse: components["schemas"]["SuccessEnvelope"] & {
             data?: components["schemas"]["ProfileOut"];
         };
         OnboardingUpdateRequest: {
-            capacity_score: number;
             bio?: string | null;
+            city?: string | null;
+            district?: string | null;
+            program_track?: string | null;
+            interests?: {
+                hobbies?: string[];
+                recharge?: string[];
+                notes?: string[];
+            } | null;
+            self_reported_stress?: number | null;
+            weekly_available_hours?: number | null;
             /** @default true */
             onboarding_completed: boolean;
         };

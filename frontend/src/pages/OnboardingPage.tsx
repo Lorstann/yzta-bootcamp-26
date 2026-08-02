@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import onboardingStep1 from '@/assets/onboarding/step-1.png'
+import onboardingStep2 from '@/assets/onboarding/step-2.png'
+import onboardingStep3 from '@/assets/onboarding/step-3.png'
 import { apiPatch } from '@/shared/api/client'
 import { getStoredUser, setAuth, getAccessToken } from '@/shared/auth/storage'
 
-type StepKind = 'text' | 'capacity' | 'chips' | 'city' | 'track'
+type StepKind = 'text' | 'chips' | 'city' | 'track' | 'stress' | 'hours'
 
 type Step = {
   id: string
@@ -47,6 +50,21 @@ const RECHARGE_OPTIONS = [
   'Yürüyüş',
 ]
 
+const STRESS_OPTIONS = [
+  { label: 'Çok düşük', value: 1 },
+  { label: 'Düşük', value: 2 },
+  { label: 'Orta', value: 3 },
+  { label: 'Yüksek', value: 4 },
+  { label: 'Çok yüksek', value: 5 },
+]
+
+const HOURS_OPTIONS = [
+  { label: '5 saatten az', value: 3 },
+  { label: '5–10 saat', value: 8 },
+  { label: '10–20 saat', value: 15 },
+  { label: '20+ saat', value: 25 },
+]
+
 const STEPS: Step[] = [
   {
     id: 'goals',
@@ -84,22 +102,16 @@ const STEPS: Step[] = [
     multi: true,
   },
   {
-    id: 'pace',
-    question: 'Bu dönem haftalık çalışma ritmin nasıl? (ör. akşamlar / hafta sonu)',
-    kind: 'text',
+    id: 'hours',
+    question: 'Bu dönem haftada yaklaşık kaç saat ayırabiliyorsun?',
+    kind: 'hours',
     skippable: true,
   },
   {
     id: 'stress',
-    question: 'Şu an stres seviyen nasıl? Bir cümle yeterli.',
-    kind: 'text',
+    question: 'Şu an stres seviyen nasıl?',
+    kind: 'stress',
     skippable: true,
-  },
-  {
-    id: 'capacity',
-    question: 'Bu haftaki kapasiteni 0–100 arası puanla (100 = tamamen müsait).',
-    kind: 'capacity',
-    skippable: false,
   },
   {
     id: 'support',
@@ -120,7 +132,8 @@ export function OnboardingPage() {
   const [trackOther, setTrackOther] = useState('')
   const [customChip, setCustomChip] = useState('')
   const [input, setInput] = useState('')
-  const [capacity, setCapacity] = useState(70)
+  const [stress, setStress] = useState<number | null>(null)
+  const [hours, setHours] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -129,6 +142,12 @@ export function OnboardingPage() {
     () => Math.round(((stepIndex + 1) / STEPS.length) * 100),
     [stepIndex],
   )
+  const stepIllustration =
+    stepIndex <= 2
+      ? onboardingStep1
+      : stepIndex <= 5
+        ? onboardingStep2
+        : onboardingStep3
 
   const selectedChips = chipAnswers[step.id] ?? []
 
@@ -143,11 +162,12 @@ export function OnboardingPage() {
   }
 
   async function finish(
-    finalCapacity: number,
     bioParts: string[],
     nextAnswers: Record<string, string>,
     nextChips: Record<string, string[]>,
     nextCity: CityAnswer,
+    nextStress: number | null,
+    nextHours: number | null,
   ) {
     setSaving(true)
     setError(null)
@@ -157,7 +177,6 @@ export function OnboardingPage() {
         trackRaw === 'Diğer' ? trackOther.trim() || null : trackRaw || null
 
       await apiPatch('/api/v1/profiles/me/onboarding', {
-        capacity_score: finalCapacity,
         bio: bioParts.filter(Boolean).join(' · ') || null,
         city: nextCity.city.trim() || null,
         district: nextCity.district.trim() || null,
@@ -167,6 +186,8 @@ export function OnboardingPage() {
           recharge: nextChips.recharge ?? [],
           notes: [],
         },
+        self_reported_stress: nextStress,
+        weekly_available_hours: nextHours,
         onboarding_completed: true,
       })
       const token = getAccessToken()
@@ -195,11 +216,14 @@ export function OnboardingPage() {
       const bioParts = STEPS.filter((s) => s.kind === 'text')
         .map((s) => nextAnswers[s.id])
         .filter(Boolean)
-      const cap =
-        step.kind === 'capacity' && !skipped
-          ? Number(value) || capacity
-          : Number(nextAnswers.capacity) || capacity
-      await finish(cap, bioParts, nextAnswers, chipAnswers, cityAnswer)
+      await finish(
+        bioParts,
+        nextAnswers,
+        chipAnswers,
+        cityAnswer,
+        stress,
+        hours,
+      )
       return
     }
     setStepIndex((i) => i + 1)
@@ -207,8 +231,12 @@ export function OnboardingPage() {
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (step.kind === 'capacity') {
-      void advance(String(capacity))
+    if (step.kind === 'stress') {
+      void advance(stress != null ? String(stress) : '', stress == null)
+      return
+    }
+    if (step.kind === 'hours') {
+      void advance(hours != null ? String(hours) : '', hours == null)
       return
     }
     if (step.kind === 'chips') {
@@ -243,6 +271,8 @@ export function OnboardingPage() {
     void advance(input.trim())
   }
 
+  const isLast = stepIndex >= STEPS.length - 1
+
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col px-4 py-8">
       <p className="text-xs font-medium uppercase tracking-wide text-equa-muted">
@@ -261,11 +291,21 @@ export function OnboardingPage() {
         />
       </div>
 
-      <h1 className="font-display mt-8 text-xl font-semibold text-equa-ink">
+      <div className="mt-6 flex justify-center">
+        <img
+          src={stepIllustration}
+          alt=""
+          className="h-32 w-auto max-w-[14rem] object-contain"
+          decoding="async"
+        />
+      </div>
+
+      <h1 className="font-display mt-6 text-xl font-semibold text-equa-ink">
         Senin için dengeli bir plan
       </h1>
       <p className="mt-2 text-sm text-equa-muted">
-        Yaklaşık 5 dakika. İstersen bazı soruları geçebilirsin.
+        Yaklaşık 5 dakika. İstersen bazı soruları geçebilirsin. Kapasite skorunu
+        senin yerine biz takip edeceğiz — check-in’lerine ve ritmine göre.
       </p>
 
       <div
@@ -276,23 +316,6 @@ export function OnboardingPage() {
       </div>
 
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
-        {step.kind === 'capacity' ? (
-          <div>
-            <label htmlFor="capacity-range" className="text-sm font-medium text-equa-ink">
-              Kapasite: {capacity}
-            </label>
-            <input
-              id="capacity-range"
-              type="range"
-              min={0}
-              max={100}
-              value={capacity}
-              onChange={(e) => setCapacity(Number(e.target.value))}
-              className="mt-2 w-full accent-equa-primary"
-            />
-          </div>
-        ) : null}
-
         {step.kind === 'text' ? (
           <div>
             <label htmlFor="onboarding-answer" className="sr-only">
@@ -376,6 +399,54 @@ export function OnboardingPage() {
           </div>
         ) : null}
 
+        {step.kind === 'stress' ? (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Stres seviyesi">
+            {STRESS_OPTIONS.map((opt) => {
+              const selected = stress === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setStress(opt.value)}
+                  className={[
+                    'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                    selected
+                      ? 'bg-equa-primary text-equa-on-primary'
+                      : 'bg-equa-accent-soft text-equa-primary',
+                  ].join(' ')}
+                  aria-pressed={selected}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
+        {step.kind === 'hours' ? (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Haftalık saat">
+            {HOURS_OPTIONS.map((opt) => {
+              const selected = hours === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setHours(opt.value)}
+                  className={[
+                    'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                    selected
+                      ? 'bg-equa-primary text-equa-on-primary'
+                      : 'bg-equa-accent-soft text-equa-primary',
+                  ].join(' ')}
+                  aria-pressed={selected}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
         {step.kind === 'chips' ? (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2" role="group" aria-label={step.question}>
@@ -429,6 +500,13 @@ export function OnboardingPage() {
           </p>
         ) : null}
 
+        {isLast ? (
+          <p className="rounded-xl border border-equa-line/30 bg-equa-surface/40 px-3 py-2 text-xs text-equa-muted">
+            Kapasite skorunu senin yerine biz hesaplayacağız — check-in’lerindeki
+            enerji, motivasyon, görevler ve müfredat yüküne göre güncellenir.
+          </p>
+        ) : null}
+
         <div className="flex gap-2">
           {step.skippable ? (
             <button
@@ -447,7 +525,7 @@ export function OnboardingPage() {
           >
             {saving
               ? 'Kaydediliyor…'
-              : stepIndex >= STEPS.length - 1
+              : isLast
                 ? 'Hazırsın'
                 : 'Devam'}
           </button>

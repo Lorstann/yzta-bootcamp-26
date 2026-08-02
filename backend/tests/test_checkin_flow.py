@@ -3,6 +3,7 @@
 from backend.services.checkin_flow import (
     MAX_TURNS,
     SOFT_CLOSE_TURN,
+    apply_user_scale_signals,
     coerce_scale,
     default_quick_replies,
     empty_state,
@@ -17,6 +18,11 @@ from backend.services.checkin_flow import (
 
 def test_opening_when_energy_unknown():
     assert next_stage(empty_state(), 0) == "opening"
+
+
+def test_explore_when_only_energy_known():
+    state = {"enerji": 10, "motivasyon": None, "engel": None, "yuk": None, "hazir": False}
+    assert next_stage(state, 1) == "explore"
 
 
 def test_skip_opening_when_energy_and_motivation_known():
@@ -121,6 +127,17 @@ def test_label_for_score():
 def test_default_quick_replies():
     opening = default_quick_replies("opening")
     assert "İyiyim" in opening
-    explore = default_quick_replies("explore")
+    explore_motivation = default_quick_replies("explore", {"enerji": 8})
+    assert "İstekliyim" in explore_motivation
+    explore = default_quick_replies(
+        "explore", {"enerji": 8, "motivasyon": 6, "engel": None}
+    )
     assert "Mülakat stresi" in explore
     assert default_quick_replies("closing") == []
+
+
+def test_apply_user_scale_signals_energy_chip():
+    state = empty_state()
+    updated = apply_user_scale_signals("Turbo moddayım", state)
+    assert updated["enerji"] == 10
+    assert updated["motivasyon"] is None

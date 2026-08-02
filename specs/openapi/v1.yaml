@@ -1250,6 +1250,18 @@ components:
               recorded_at:
                 type: string
                 format: date-time
+              source:
+                type: string
+              factors:
+                nullable: true
+                type: object
+        capacity_factors:
+          nullable: true
+          type: object
+        capacity_updated_at:
+          nullable: true
+          type: string
+          format: date-time
 
     ProfileStatsResponse:
       allOf:
@@ -1270,6 +1282,29 @@ components:
         capacity_score:
           nullable: true
           type: number
+          description: System-computed capacity score (read-only)
+        capacity_source:
+          nullable: true
+          type: string
+          description: "onboarding | checkin | task | auto"
+        capacity_factors:
+          nullable: true
+          type: object
+          description: XAI breakdown of latest score computation
+        capacity_updated_at:
+          nullable: true
+          type: string
+          format: date-time
+        self_reported_stress:
+          nullable: true
+          type: integer
+          minimum: 1
+          maximum: 5
+        weekly_available_hours:
+          nullable: true
+          type: integer
+          minimum: 0
+          maximum: 80
         linkedin_url:
           nullable: true
           type: string
@@ -1325,12 +1360,7 @@ components:
     OnboardingUpdateRequest:
       type: object
       additionalProperties: false
-      required: [capacity_score]
       properties:
-        capacity_score:
-          type: number
-          minimum: 0
-          maximum: 100
         bio:
           nullable: true
           type: string
@@ -1350,6 +1380,16 @@ components:
         interests:
           nullable: true
           $ref: '#/components/schemas/InterestsPayload'
+        self_reported_stress:
+          nullable: true
+          type: integer
+          minimum: 1
+          maximum: 5
+        weekly_available_hours:
+          nullable: true
+          type: integer
+          minimum: 0
+          maximum: 80
         onboarding_completed:
           type: boolean
           default: true

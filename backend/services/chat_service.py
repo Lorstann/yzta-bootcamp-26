@@ -21,6 +21,7 @@ from backend.services.checkin_flow import (
     MAX_TURNS,
     VALID_WORKLOAD,
     CheckinState,
+    apply_user_scale_signals,
     coerce_scale,
     default_quick_replies,
     empty_state,
@@ -137,6 +138,8 @@ class StreamSanitizer:
 
 def parse_state(text: str) -> CheckinState | None:
     """Extract and validate [DURUM]{...}[/DURUM] JSON block."""
+    from backend.services.capacity import clamp_llm_delta
+
     match = _STATE_BLOCK_RE.search(text)
     if not match:
         return None
@@ -167,6 +170,14 @@ def parse_state(text: str) -> CheckinState | None:
 
     if data.get("hazir") is True:
         state["hazir"] = True
+
+    delta = clamp_llm_delta(data.get("kapasite_delta"))
+    if delta != 0.0:
+        state["kapasite_delta"] = delta
+
+    neden = data.get("kapasite_neden")
+    if isinstance(neden, str) and neden.strip():
+        state["kapasite_neden"] = neden.strip()[:200]
 
     return state
 
@@ -488,7 +499,10 @@ async def stream_chat_response(
     current_state: CheckinState = merge_state(
         empty_state(), dict(state) if state else None  # type: ignore[arg-type]
     )
-    effective_stage = stage or next_stage(current_state, turn_count)
+    # Advance from this turn's chip/label answer BEFORE prompting so we don't
+    # stay stuck in "opening" after the user already picked an energy label.
+    current_state = apply_user_scale_signals(message, current_state)
+    effective_stage = next_stage(current_state, turn_count)
 
     scope = await check_scope(message)
     if not scope.in_scope:
@@ -594,7 +608,7 @@ async def stream_chat_response(
 
     quick_replies = _parse_quick_replies(raw)
     if not quick_replies and not completed:
-        quick_replies = default_quick_replies(effective_stage) or None  # type: ignore[arg-type]
+        quick_replies = default_quick_replies(new_stage, merged) or None  # type: ignore[arg-type]
     if completed:
         quick_replies = None
 

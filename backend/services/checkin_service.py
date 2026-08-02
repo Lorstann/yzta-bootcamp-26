@@ -34,7 +34,7 @@ def serialize_session(session) -> dict[str, Any]:
     mode = resolve_mode(status, stage)
     quick_replies: list[str] | None = None
     if mode == "checkin" and status != "completed":
-        replies = default_quick_replies(stage)
+        replies = default_quick_replies(stage, state)
         quick_replies = replies or None
 
     return {
@@ -154,6 +154,34 @@ async def persist_turn_and_tasks(
     profile = await profile_repo.get_by_user_id(user_id)
     capacity = profile.capacity_score if profile else None
 
+    # Recompute capacity from today's signals + LLM delta before task capping
+    llm_delta = 0.0
+    if state and state.get("kapasite_delta") is not None:
+        try:
+            llm_delta = float(state["kapasite_delta"])
+        except (TypeError, ValueError):
+            llm_delta = 0.0
+
+    from backend.services.capacity_service import recompute_for_user
+
+    try:
+        recomputed = await recompute_for_user(
+            db,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            state=state,
+            llm_delta=llm_delta,
+            source="checkin",
+        )
+        if recomputed.get("score") is not None:
+            capacity = recomputed["score"]
+    except Exception as exc:
+        logger.error(
+            "Capacity recompute failed during check-in | user_id=%s err=%s",
+            user_id,
+            exc,
+        )
+
     if should_downscale(capacity, user_message):
         suspended = await task_repo.suspend_incomplete(
             tenant_id=tenant_id, user_id=user_id
@@ -161,12 +189,7 @@ async def persist_turn_and_tasks(
         logger.info("Kapasite downscale | user_id=%s suspended=%s", user_id, suspended)
 
     if tasks:
-        # Cap tasks further when energy is low
-        energy = (state or {}).get("enerji")
-        effective_capacity = capacity
-        if energy is not None and int(energy) <= 4:
-            effective_capacity = min(float(capacity) if capacity is not None else 40.0, 35.0)
-        limited = limit_tasks(tasks, effective_capacity)
+        limited = limit_tasks(tasks, capacity)
         # Normalize to items for replace_tasks
         items: list[dict] = []
         for t in limited:

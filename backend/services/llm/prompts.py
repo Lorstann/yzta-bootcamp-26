@@ -193,12 +193,17 @@ GÖREV KALİTESİ (zorunlu — kapanışta):
 
 Her yanıtının SONUNA, kullanıcıya görünmeyecek şekilde şu bloğu ekle
 (bildiğin alanları doldur; bilmediğin için null bırak):
-[DURUM]{{"enerji":null,"motivasyon":null,"engel":null,"yuk":null,"hazir":false}}[/DURUM]
+[DURUM]{{"enerji":null,"motivasyon":null,"engel":null,"yuk":null,"hazir":false,"kapasite_delta":0,"kapasite_neden":null}}[/DURUM]
 - enerji / motivasyon: etiket metni ({energy_labels} / {motivation_labels})
   veya 1-10 tam sayı veya null
 - engel: kısa metin veya null
 - yuk: "dusuk" | "orta" | "yuksek" | null
 - hazir: görev vermeye hazırsa true
+- kapasite_delta: -15..+15 tam sayı. SADECE sohbette enerji/motivasyon/
+  yük dışında ölçülemez bir bağlam varsa doldur (sınav haftası, hastalık,
+  taşınma, yeni iş, aile krizi vb.). Yoksa 0 bırak. Skoru tek başına
+  belirleme — sistem zaten hesaplıyor; sen sadece küçük düzeltme öner.
+- kapasite_neden: delta ≠ 0 ise kısa neden (≤80 karakter), aksi null
 
 Uygunsa hızlı seçenek chip'leri ekle (max 5, her biri ≤24 karakter):
 [SECENEKLER]

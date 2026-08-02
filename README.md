@@ -97,6 +97,48 @@ Toplantılar bootcamp sürecinde Slack ve Google Meets üzerinden yürütülmü�
 - Sprint 2 öncesi son push'lar kontrol edildi, gereklilikler tamamlandı.
 - Sprint 2'de bitmeyen görevler **Sprint 3'e aktarıldı** ve projeyi canlıya almak için gerekli altyapı hazırlandı.
 
+### 21.07.2026
+
+- Sprint 3 planlaması yapıldı; öncelik **Frontend** ve Sprint 2'den taşınan Backend/AI entegrasyon görevlerine verildi.
+- React PWA iskeleti (Vite + TypeScript + Tailwind) ve mobile-first routing üzerinde uzlaşıldı.
+- OpenAPI kontratı (`specs/openapi/v1.yaml`) kilitlendi; frontend'in mock-API ile paralel ilerlemesine karar verildi.
+- Görev dağılımı [progress.md](progress.md) üzerinden güncellendi.
+
+### 23.07.2026
+
+- Frontend: PWA manifest + service worker, Chat UI (mesaj listesi, input, empty/loading/error) ve MSW mock ile SSE akışı demo edilebilir hale getirildi.
+- Backend: `POST /api/v1/chat/stream` AI streaming fonksiyonuna bağlandı; JWT auth ve tenant sahipliği kontrolü eklendi.
+- AI: RAG pipeline (chunk + embedding + pgvector retrieve) check-in prompt'una enjekte edildi.
+- Karşılaşılan sorun: host Postgres port çakışması → Docker portu `5433:5432` olarak ayarlandı.
+
+### 26.07.2026
+
+- Öğrenci happy path tamamlandı: login → onboarding → check-in → chat → görev persist.
+- Onboarding sihirbazı, LinkedIn/PDF yükleme (local fallback) ve kapasiteye göre max 3 görev atama entegre edildi.
+- Kurum tarafı: dashboard iskeleti, Yeşil/Sarı/Kırmızı risk sinyali ve ROI metrikleri (önlenen dropout / korunan gelir) backend + UI'ya bağlandı.
+- Guardrails keyword listesi sohbet UI'ya yansıtıldı; HIGH_RISK sinyali kurum tarafına düşecek şekilde test edildi.
+
+### 29.07.2026
+
+- Stitch Dark Redesign uygulandı: Deep Space koyu tema, glass sidebar/TopBar, mobil bottom nav; Landing, Dashboard, Tasks, Takvim route'ları eklendi.
+- Check-in haftalıktan **günlüğe** çevrildi (streak, mood selector, session history replay); rol bazlı navigasyon (öğrenci vs instructor/admin) netleştirildi.
+- Kurum AI asistanı (metrics-only streaming) ve müfredat yükleme (PDF/DOCX/TXT/MD) tamamlandı.
+- Check-in bitince aynı sohbette **koç modu** açılması kararlaştırıldı ve uygulandı.
+
+### 31.07.2026
+
+- Kişiselleştirilmiş burnout koçu (şehir/ilçe, program_track, interests) ve kapsam kilidi (scope guard: off-topic engeli) eklendi.
+- Otomatik hibrit kapasite skoru devreye alındı: kullanıcı elle skor girmiyor; deterministik motor + LLM `kapasite_delta` + EMA sınırı.
+- Offline banner, install prompt ve TanStack Query / RHF+Zod formları ile MVP hardening (P0–P2) kapatıldı.
+- pytest ve Vitest suite'leri yeşil; E2E smoke (Playwright) öğrenci + kurum journey'leri koşturuldu.
+
+### 02.08.2026
+
+- Sprint 3 son push'ları ve demo senaryosu gözden geçirildi.
+- Video / pitch için seed verisi (2 tenant, demo öğrenci, müfredat) ve uçtan uca akış doğrulandı.
+- Sprint Review ve Retrospective yapıldı; MVP hardening tamamlandı olarak işaretlendi.
+- Canlıya çıkış checklist'i (env, seed, E2E, OpenAPI) kapatıldı.
+
 ---
 
 # Sprint 1
@@ -170,5 +212,37 @@ Alınan kararlar: Sprint 2'de user story'ler 4 alana bölünerek geliştirmeye g
 ---
 
 # Sprint 3
+
+**Sprint Hedefi:** Sprint 2'den taşınan Frontend'i hayata geçirmek; Backend/AI entegrasyonunu tamamlamak; öğrenci (check-in, görev, kapasite) ve kurum (risk, ROI, XAI) deneyimini uçtan uca bağlayarak MVP'yi demo ve canlı çıkışa hazır hale getirmek.
+
+- **Backlog düzeni ve Story seçimleri**: Sprint 2'de başlanamayan Frontend story'leri (S01, S02, S05) ile Sprint 3 planındaki S22–S26 önceliklendirildi; Sprint 2'den kalan Backend/AI görevleri (streaming entegrasyonu, RAG, check-in, auth) aynı sprintte kapatıldı. Görev takibi [progress.md](progress.md) üzerinden sürdürüldü.
+
+  Sprint 3 kapsamında öncelik **Frontend + entegrasyon + kurum/ROI** oldu; ardından check-in redesign, otomatik kapasite ve MVP hardening tamamlandı.
+
+  | Alan | Durum | Öne çıkan çıktılar |
+  |------|-------|--------------------|
+  | Frontend | Tamamlandı | React PWA kabuk, Chat UI + SSE, onboarding, Dashboard/Tasks/Takvim, kurum ekranları, dark redesign, offline/install, TanStack Query |
+  | Backend | Tamamlandı | JWT auth, streaming + check-in/koç endpoint'leri, görev/kapasite/risk API'leri, müfredat upload, kurum assistant, OpenAPI genişlemesi |
+  | AI Agent | Tamamlandı | RAG inject, günlük check-in akışı, koç modu, guardrails + scope guard, hibrit kapasite skoru, burnout kişiselleştirme |
+  | Database | Tamamlandı | Alembic 007–013 (mood, daily_tasks, capacity_snapshots, curriculum upload, burnout profil alanları, otomatik kapasite) |
+
+  Detaylı görev bazlı ilerleme: [progress.md](progress.md)
+
+- **Daily Scrum**: Daily Scrum toplantıları Slack ve Google Meets üzerinden yürütülmüştür. Sprint 3 sürecine ait toplantı notları yukarıdaki [Daily Scrum Notları](#daily-scrum-notları) bölümünde (21.07 – 02.08.2026) özetlenmiştir. Toplantı kayıtları word olarak paylaşılmaktadır: [Sprint 3 Daily Scrum Chats](<kanban-board/SPRINT 3.docx>)
+
+- **Sprint board update**: Sprint 3 board görünümü (sprint başı ve sprint ilerleyişi):
+![Sprint 3 Kanban Board - Ara Durum](kanban-board/image4.png)
+![Sprint 3 Kanban Board - Güncel Durum](kanban-board/image5.png)
+
+- **Ürün Durumu**: Sprint 3 sonunda Equa MVP uçtan uca çalışır durumdadır. Öğrenci tarafında PWA üzerinden giriş, onboarding, günlük AI check-in (streaming), koç modu, otomatik kapasite skoru ve max 3 görev planı demo edilebilir. Kurum tarafında risk sinyalleri (Yeşil/Sarı/Kırmızı), ROI metrikleri, XAI gerekçeleri ve müfredat yükleme kullanıma hazırdır. pytest, Vitest ve Playwright E2E journey'leri yeşil; seed verisi ile demo/pitch senaryosu doğrulanmıştır.
+
+- **Sprint Review**: 
+Alınan kararlar: Sprint 3'te Frontend sıfırdan ayağa kaldırılıp Backend/AI ile entegre edildi. OpenAPI kontratı kilitlendi; JWT + rol bazlı auth, öğrenci happy path ve kurum dashboard'u tamamlandı. Check-in haftalıktan günlüğe alındı; koç modu, kapsam kilidi ve hibrit otomatik kapasite skoru ürün kararı olarak kabul edildi. Risk skoru, önlenen dropout ve korunan gelir (ROI) metrikleri ile XAI gerekçe logları kurum ekranına bağlandı. Dark theme redesign ve PWA (offline/install) ile mobil-first deneyim sertleştirildi. E2E testler ve demo seed'i ile canlıya çıkış checklist'i kapatıldı. Sprint Review katılımcıları: Takım 320 (Dilan Özyazıcı, Mustafa Kurtar, Elif Kahrıman, Hafize Talya Keysan, Hasibe Nur Tunç)
+
+- **Sprint Retrospective:**
+  - Sprint 2'de Frontend'e hiç başlanamaması Sprint 3 yükünü artırdı; paralel mock-API + erken OpenAPI kilidi sayesinde Frontend ekibi Backend'i beklemeden ilerleyebildi
+  - `progress.md` disiplini Sprint 3 boyunca da conflict ve görünürlük sorunlarını düşük tuttu; her anlamlı push'ta güncelleme sürdürüldü
+  - Check-in ve kapasite özelliğinde ürün kararları (günlük check-in, otomatik skor, koç modu) sprint ortasında netleşti; erken sabitlemek tahminleri daha isabetli kılardı
+  - Entegrasyon testleri (pytest + Vitest + Playwright) MVP hardening'de kritik güvenlik ağı oldu; canlı demo öncesi seed + E2E koşusu zorunlu checklist maddesi haline getirildi
 
 ---

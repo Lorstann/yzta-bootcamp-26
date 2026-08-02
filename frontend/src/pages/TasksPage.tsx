@@ -3,6 +3,7 @@ import { Check, Sparkles } from 'lucide-react'
 import { apiGet, apiPatch } from '@/shared/api/client'
 import { ApiClientError } from '@/shared/api/envelope'
 import { queryKeys } from '@/shared/api/query-keys'
+import emptyTasks from '@/assets/empty/tasks.png'
 import {
   Badge,
   Card,
@@ -111,6 +112,7 @@ export function TasksPage() {
         <EmptyState
           title="Henüz görev yok"
           description="Sohbette check-in'i tamamla — görevler burada listelenir."
+          image={emptyTasks}
         />
       ) : (
         <ul className="space-y-4">

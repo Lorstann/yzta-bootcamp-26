@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiGet } from '@/shared/api/client'
 import { queryKeys } from '@/shared/api/query-keys'
+import emptyCalendar from '@/assets/empty/calendar.png'
 import { Badge, Button, GlassPanel, Skeleton } from '@/components/ui'
 
 type HistorySession = {
@@ -220,7 +221,15 @@ export function CalendarPage() {
             </div>
           ) : null}
           {selectedTasks.length === 0 && !selectedSession ? (
-            <p className="text-sm text-equa-muted">Bu günde kayıt yok.</p>
+            <div className="flex flex-col items-center py-4 text-center">
+              <img
+                src={emptyCalendar}
+                alt=""
+                className="mb-3 h-24 w-auto max-w-[10rem] object-contain"
+                decoding="async"
+              />
+              <p className="text-sm text-equa-muted">Bu günde kayıt yok.</p>
+            </div>
           ) : (
             selectedTasks.map((t) => (
               <div

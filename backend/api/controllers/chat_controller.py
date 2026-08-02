@@ -32,6 +32,7 @@ from backend.services.rag.retrieve import retrieve_curriculum_context
 from backend.services.risk_service import record_high_risk_signal
 from backend.services.task_balancing import limit_tasks
 from backend.services.wellbeing import build_wellbeing_context
+from backend.services.capacity import estimate_live
 
 logger = logging.getLogger(__name__)
 
@@ -202,15 +203,13 @@ async def _event_generator(
         elif event.get("type") == "done":
             tasks = event.get("daily_tasks")
             if tasks and mode == "checkin":
-                energy = (event.get("state") or {}).get("enerji")
-                effective_capacity = capacity
-                if energy is not None and int(energy) <= 4:
-                    effective_capacity = min(
-                        float(capacity) if capacity is not None else 40.0, 35.0
-                    )
+                live = estimate_live(
+                    float(capacity) if capacity is not None else None,
+                    event.get("state") or state,
+                )
                 event = {
                     **event,
-                    "daily_tasks": limit_tasks(tasks, effective_capacity),
+                    "daily_tasks": limit_tasks(tasks, live),
                 }
             # Strip learned_profile from SSE (internal only)
             learned = event.pop("learned_profile", None)

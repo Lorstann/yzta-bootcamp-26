@@ -14,6 +14,7 @@ import { useChatStream } from '@/features/chat/useChatStream'
 import type { ChatMessage } from '@/features/chat/types'
 import { apiGet } from '@/shared/api/client'
 import { ApiClientError } from '@/shared/api/envelope'
+import emptyChat from '@/assets/empty/chat.png'
 import { AiChip, Badge, GlassPanel } from '@/components/ui'
 
 const OPENING_CHIPS = ENERGY_CHOICES.map((c) => c.label)
@@ -231,6 +232,12 @@ export function ChatPage() {
         >
           {messages.length === 0 ? (
             <div className="flex h-full min-h-[12rem] flex-col items-center justify-center text-center">
+              <img
+                src={emptyChat}
+                alt=""
+                className="mb-4 h-28 w-auto max-w-[12rem] object-contain"
+                decoding="async"
+              />
               <p className="font-display text-base font-medium text-equa-ink">
                 Mesaj yazarak başla
               </p>

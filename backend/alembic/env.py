@@ -33,8 +33,8 @@ if config.config_file_name is not None:
 from backend.db.base import Base  # noqa: E402
 from backend.config import settings  # noqa: E402
 
-# .env'deki DATABASE_URL'i alembic.ini'nin üzerine yaz
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Escape % for ConfigParser interpolation (URL-encoded passwords contain %XX).
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

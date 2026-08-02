@@ -68,3 +68,36 @@ def test_parse_state_invalid_json():
 
 def test_parse_state_missing_block():
     assert parse_state("sadece metin") is None
+
+
+def test_parse_state_kapasite_delta_clamped():
+    text = (
+        '[DURUM]{"enerji":6,"motivasyon":6,"engel":null,'
+        '"yuk":"orta","hazir":false,"kapasite_delta":40,'
+        '"kapasite_neden":"sınav haftası"}[/DURUM]'
+    )
+    state = parse_state(text)
+    assert state is not None
+    assert state["kapasite_delta"] == 15.0
+    assert state["kapasite_neden"] == "sınav haftası"
+
+
+def test_parse_state_kapasite_delta_zero_omitted():
+    text = (
+        '[DURUM]{"enerji":6,"motivasyon":null,"engel":null,'
+        '"yuk":null,"hazir":false,"kapasite_delta":0}[/DURUM]'
+    )
+    state = parse_state(text)
+    assert state is not None
+    assert state.get("kapasite_delta") is None
+
+
+def test_parse_state_negative_kapasite_delta():
+    text = (
+        '[DURUM]{"enerji":4,"motivasyon":4,"engel":"hasta",'
+        '"yuk":"yuksek","hazir":false,"kapasite_delta":-12,'
+        '"kapasite_neden":"grip"}[/DURUM]'
+    )
+    state = parse_state(text)
+    assert state is not None
+    assert state["kapasite_delta"] == -12.0

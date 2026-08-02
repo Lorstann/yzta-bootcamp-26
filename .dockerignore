@@ -1,0 +1,18 @@
+# Keep image lean — build context is repo root
+.git
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/dist
+**/coverage
+frontend
+infra
+specs
+docs
+.cursor
+*.md
+.env
+.env.*
+!.env.example
+var

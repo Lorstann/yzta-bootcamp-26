@@ -13,3 +13,4 @@ frontend/playwright-report/
 frontend/dist/
 frontend/node_modules/.vite/
 stitch_equa_ai_coaching_platform/
+.cursor/

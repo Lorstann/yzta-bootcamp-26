@@ -9,7 +9,6 @@ import json
 import logging
 import re
 import uuid
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +59,9 @@ def to_public_profile(profile) -> dict[str, Any]:
         "capacity_score": float(profile.capacity_score)
         if profile.capacity_score is not None
         else None,
+        "capacity_source": getattr(profile, "capacity_source", None) or "auto",
+        "self_reported_stress": getattr(profile, "self_reported_stress", None),
+        "weekly_available_hours": getattr(profile, "weekly_available_hours", None),
         "linkedin_url": profile.linkedin_url,
         "bio": profile.bio,
         "competencies": profile.competencies,
@@ -78,20 +80,34 @@ async def get_profile(
     profile = await repo.get_by_user_id(user_id)
     if profile is None:
         raise AppError("Profile not found", code="NOT_FOUND", status_code=404)
-    return to_public_profile(profile)
+    data = to_public_profile(profile)
+
+    from backend.repositories.capacity_repo import CapacitySnapshotRepository
+
+    latest = await CapacitySnapshotRepository(db).latest_for_user(
+        tenant_id=profile.tenant_id, user_id=user_id
+    )
+    if latest is not None:
+        data["capacity_factors"] = getattr(latest, "factors", None)
+        data["capacity_updated_at"] = latest.recorded_at.isoformat()
+    else:
+        data["capacity_factors"] = None
+        data["capacity_updated_at"] = None
+    return data
 
 
 async def update_onboarding(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
-    capacity_score: Decimal,
     bio: str | None,
     onboarding_completed: bool,
     city: str | None = None,
     district: str | None = None,
     program_track: str | None = None,
     interests: Any = None,
+    self_reported_stress: int | None = None,
+    weekly_available_hours: int | None = None,
 ) -> dict[str, Any]:
     repo = StudentProfileRepository(db)
     profile = await repo.get_by_user_id(user_id)
@@ -107,17 +123,18 @@ async def update_onboarding(
         profile = StudentProfile(
             user_id=user_id,
             tenant_id=user.tenant_id,
-            capacity_score=capacity_score,
             bio=bio,
             city=(city or "").strip() or None,
             district=(district or "").strip() or None,
             program_track=(program_track or "").strip() or None,
             interests=interests_payload,
+            self_reported_stress=self_reported_stress,
+            weekly_available_hours=weekly_available_hours,
             onboarding_completed=onboarding_completed,
+            capacity_source="onboarding",
         )
         await repo.create(profile)
     else:
-        profile.capacity_score = capacity_score
         if bio is not None:
             profile.bio = bio
         if city is not None:
@@ -128,22 +145,27 @@ async def update_onboarding(
             profile.program_track = program_track.strip() or None
         if interests_payload is not None:
             profile.interests = interests_payload
+        if self_reported_stress is not None:
+            profile.self_reported_stress = self_reported_stress
+        if weekly_available_hours is not None:
+            profile.weekly_available_hours = weekly_available_hours
         profile.onboarding_completed = onboarding_completed
         await db.flush()
 
-    from backend.repositories.capacity_repo import CapacitySnapshotRepository
+    from backend.services.capacity_service import recompute_for_user
 
-    snap_repo = CapacitySnapshotRepository(db)
-    await snap_repo.record(
+    await recompute_for_user(
+        db,
         tenant_id=profile.tenant_id,
         user_id=user_id,
-        score=capacity_score,
+        source="onboarding",
     )
 
     logger.info(
-        "Onboarding updated | user_id=%s capacity=%s city=%s track=%s",
+        "Onboarding updated | user_id=%s stress=%s hours=%s city=%s track=%s",
         user_id,
-        capacity_score,
+        getattr(profile, "self_reported_stress", None),
+        getattr(profile, "weekly_available_hours", None),
         getattr(profile, "city", None),
         getattr(profile, "program_track", None),
     )
@@ -309,9 +331,18 @@ async def get_profile_stats(
         {
             "score": float(s.score),
             "recorded_at": s.recorded_at.isoformat(),
+            "source": getattr(s, "source", None) or "manual",
+            "factors": getattr(s, "factors", None),
         }
         for s in snapshots
     ]
+
+    latest_factors = None
+    capacity_updated_at = None
+    if snapshots:
+        latest = snapshots[-1]
+        latest_factors = getattr(latest, "factors", None)
+        capacity_updated_at = latest.recorded_at.isoformat()
 
     logger.info(
         "Profile stats | user_id=%s checkins=%s streak=%s",
@@ -325,6 +356,8 @@ async def get_profile_stats(
         "completed_tasks": completed_tasks,
         "open_tasks": sum(1 for t in tasks if not t.is_completed),
         "capacity_history": capacity_history,
+        "capacity_factors": latest_factors,
+        "capacity_updated_at": capacity_updated_at,
     }
 
 

@@ -24,6 +24,11 @@ class ProfileOut(BaseModel):
 
     user_id: UUID
     capacity_score: Optional[Decimal] = None
+    capacity_source: Optional[str] = None
+    capacity_factors: Optional[dict[str, Any]] = None
+    capacity_updated_at: Optional[str] = None
+    self_reported_stress: Optional[int] = None
+    weekly_available_hours: Optional[int] = None
     linkedin_url: Optional[str] = None
     bio: Optional[str] = None
     competencies: Optional[dict[str, Any]] = None
@@ -37,12 +42,13 @@ class ProfileOut(BaseModel):
 class OnboardingUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    capacity_score: Decimal = Field(..., ge=0, le=100)
     bio: Optional[str] = Field(default=None, max_length=2000)
     city: Optional[str] = Field(default=None, max_length=120)
     district: Optional[str] = Field(default=None, max_length=120)
     program_track: Optional[str] = Field(default=None, max_length=200)
     interests: Optional[InterestsPayload] = None
+    self_reported_stress: Optional[int] = Field(default=None, ge=1, le=5)
+    weekly_available_hours: Optional[int] = Field(default=None, ge=0, le=80)
     onboarding_completed: bool = True
 
 

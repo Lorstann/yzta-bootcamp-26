@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Optional
-from sqlalchemy import Boolean, Numeric, String, Text, TIMESTAMP, ForeignKey, text
+from sqlalchemy import Boolean, Integer, Numeric, String, Text, TIMESTAMP, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
@@ -60,6 +60,11 @@ class StudentProfile(Base):
     capacity_score: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=5, scale=2), nullable=True
     )
+    capacity_source: Mapped[str] = mapped_column(
+        String(20), server_default=text("'auto'"), nullable=False
+    )
+    self_reported_stress: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    weekly_available_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     competencies: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)

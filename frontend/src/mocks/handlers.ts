@@ -164,7 +164,18 @@ export const handlers = [
       success: true,
       data: {
         user_id: '11111111-1111-1111-1111-111111111101',
-        capacity_score: 70,
+        capacity_score: 72,
+        capacity_source: 'checkin',
+        capacity_factors: {
+          base: 60,
+          enerji: 8,
+          motivasyon: 3,
+          onboarding_stres: -5,
+          mufredat_yuku: 0,
+        },
+        capacity_updated_at: '2026-07-28T10:00:00Z',
+        self_reported_stress: 3,
+        weekly_available_hours: 15,
         linkedin_url: null,
         bio: null,
         competencies: null,
@@ -192,9 +203,32 @@ export const handlers = [
         completed_tasks: 5,
         open_tasks: 1,
         capacity_history: [
-          { score: 65, recorded_at: '2026-07-01T00:00:00Z' },
-          { score: 70, recorded_at: '2026-07-15T00:00:00Z' },
+          {
+            score: 65,
+            recorded_at: '2026-07-01T00:00:00Z',
+            source: 'onboarding',
+            factors: { base: 60, onboarding_stres: 0 },
+          },
+          {
+            score: 70,
+            recorded_at: '2026-07-15T00:00:00Z',
+            source: 'checkin',
+            factors: { base: 60, enerji: 8 },
+          },
+          {
+            score: 72,
+            recorded_at: '2026-07-28T10:00:00Z',
+            source: 'checkin',
+            factors: { base: 60, enerji: 8, motivasyon: 3 },
+          },
         ],
+        capacity_factors: {
+          base: 60,
+          enerji: 8,
+          motivasyon: 3,
+          onboarding_stres: -5,
+        },
+        capacity_updated_at: '2026-07-28T10:00:00Z',
       },
       error: null,
       meta: {},
@@ -207,7 +241,16 @@ export const handlers = [
       success: true,
       data: {
         user_id: '11111111-1111-1111-1111-111111111101',
-        capacity_score: body.capacity_score ?? 70,
+        capacity_score: 68,
+        capacity_source: 'onboarding',
+        capacity_factors: {
+          base: 60,
+          onboarding_stres:
+            typeof body.self_reported_stress === 'number' &&
+            (body.self_reported_stress as number) >= 4
+              ? -5
+              : 0,
+        },
         linkedin_url: null,
         bio: body.bio ?? null,
         competencies: null,
@@ -215,6 +258,8 @@ export const handlers = [
         district: body.district ?? null,
         program_track: body.program_track ?? null,
         interests: body.interests ?? { hobbies: [], recharge: [], notes: [] },
+        self_reported_stress: body.self_reported_stress ?? null,
+        weekly_available_hours: body.weekly_available_hours ?? null,
         onboarding_completed: body.onboarding_completed ?? true,
       },
       error: null,

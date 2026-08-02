@@ -154,6 +154,14 @@ export function InstitutionPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
+      <div className="mb-6 overflow-hidden rounded-2xl">
+        <img
+          src="/images/institution-hero.png"
+          alt="Equa kurum dashboard görünümü"
+          className="h-36 w-full object-cover sm:h-44"
+          decoding="async"
+        />
+      </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-xl font-semibold text-equa-ink">

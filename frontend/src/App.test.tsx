@@ -48,7 +48,10 @@ describe('App shell', () => {
   it('renders Equa brand and Sohbet navigation on chat route', async () => {
     renderApp('/chat')
 
-    expect(screen.getAllByText('Equa').length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByRole('link', { name: 'Equa ana sayfa' }).length,
+    ).toBeGreaterThan(0)
+    expect(screen.getAllByAltText('Equa').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sohbet').length).toBeGreaterThan(0)
     expect(await screen.findByText('Mesaj yazarak başla')).toBeInTheDocument()
   })
@@ -63,7 +66,9 @@ describe('App shell', () => {
     clearAuth()
     renderApp('/')
 
-    expect(await screen.findByText(/hep yanında/i)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Kapasiteni aşmadan ilerle/i),
+    ).toBeInTheDocument()
   })
 })
 

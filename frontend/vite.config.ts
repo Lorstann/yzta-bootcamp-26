@@ -43,7 +43,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,svg,png,woff2}'],
+        // Keep the app shell lean — huge marketing/PWA bitmaps are network-fetched.
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        globIgnores: ['**/images/**', '**/og.png', '**/pwa-512.png'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // SPA client routes must fall back to the app shell, not offline.html.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],

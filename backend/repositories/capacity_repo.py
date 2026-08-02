@@ -27,13 +27,35 @@ class CapacitySnapshotRepository(BaseRepository[CapacitySnapshot]):
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
         score: Decimal,
+        source: str = "manual",
+        factors: dict | None = None,
     ) -> CapacitySnapshot:
         row = CapacitySnapshot(
             tenant_id=tenant_id,
             user_id=user_id,
             score=score,
+            source=source,
+            factors=factors,
         )
         return await self.create(row)
+
+    async def latest_for_user(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Optional[CapacitySnapshot]:
+        stmt = (
+            select(CapacitySnapshot)
+            .where(
+                CapacitySnapshot.tenant_id == tenant_id,
+                CapacitySnapshot.user_id == user_id,
+            )
+            .order_by(CapacitySnapshot.recorded_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list_for_user(
         self,

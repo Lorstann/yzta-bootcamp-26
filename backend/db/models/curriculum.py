@@ -31,6 +31,7 @@ class Curriculum(Base):
     file_name: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     file_uri: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     chunk_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    weekly_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     uploaded_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
