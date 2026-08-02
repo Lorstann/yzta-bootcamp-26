@@ -230,11 +230,11 @@ Alınan kararlar: Sprint 2'de user story'ler 4 alana bölünerek geliştirmeye g
 
 - **Daily Scrum**: Daily Scrum toplantıları Slack ve Google Meets üzerinden yürütülmüştür. Sprint 3 sürecine ait toplantı notları yukarıdaki [Daily Scrum Notları](#daily-scrum-notları) bölümünde (21.07 – 02.08.2026) özetlenmiştir. Toplantı kayıtları word olarak paylaşılmaktadır: [Sprint 3 Daily Scrum Chats](<kanban-board/SPRINT 3.docx>)
 
-- **Sprint board update**: Sprint 3 board görünümü (sprint başı ve sprint ilerleyişi):
-![Sprint 3 Kanban Board - Ara Durum](kanban-board/image4.png)
-![Sprint 3 Kanban Board - Güncel Durum](kanban-board/image5.png)
+- **Sprint board update**: Sprint 3 board görünümü:
+![Sprint 3 Kanban Board](kanban-board/image4.png)
 
-- **Ürün Durumu**: Sprint 3 sonunda Equa MVP uçtan uca çalışır durumdadır. Öğrenci tarafında PWA üzerinden giriş, onboarding, günlük AI check-in (streaming), koç modu, otomatik kapasite skoru ve max 3 görev planı demo edilebilir. Kurum tarafında risk sinyalleri (Yeşil/Sarı/Kırmızı), ROI metrikleri, XAI gerekçeleri ve müfredat yükleme kullanıma hazırdır. pytest, Vitest ve Playwright E2E journey'leri yeşil; seed verisi ile demo/pitch senaryosu doğrulanmıştır.
+- **Ürün Durumu**:
+![Sprint 3 Ürün Durumu](kanban-board/image5.png)
 
 - **Sprint Review**: 
 Alınan kararlar: Sprint 3'te Frontend sıfırdan ayağa kaldırılıp Backend/AI ile entegre edildi. OpenAPI kontratı kilitlendi; JWT + rol bazlı auth, öğrenci happy path ve kurum dashboard'u tamamlandı. Check-in haftalıktan günlüğe alındı; koç modu, kapsam kilidi ve hibrit otomatik kapasite skoru ürün kararı olarak kabul edildi. Risk skoru, önlenen dropout ve korunan gelir (ROI) metrikleri ile XAI gerekçe logları kurum ekranına bağlandı. Dark theme redesign ve PWA (offline/install) ile mobil-first deneyim sertleştirildi. E2E testler ve demo seed'i ile canlıya çıkış checklist'i kapatıldı. Sprint Review katılımcıları: Takım 320 (Dilan Özyazıcı, Mustafa Kurtar, Elif Kahrıman, Hafize Talya Keysan, Hasibe Nur Tunç)
